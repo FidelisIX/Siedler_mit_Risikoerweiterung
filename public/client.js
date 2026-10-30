@@ -5,7 +5,10 @@ const socket = io();
 const RESOURCES = ['holz', 'stein', 'nahrung', 'erz'];
 const RESOURCE_LABEL = { holz: '🪵 Holz', stein: '🧱 Stein', nahrung: '🌾 Nahrung', erz: '⛓️ Erz' };
 const FACE_LABEL = { wald: '🌲 Wald', steinbruch: '🪨 Steinbruch', acker: '🌾 Acker', mine: '⛏️ Mine', stern: '⭐ Stern' };
-const BUILDING_ICON = { siedlung: '🏠', gut: '🏡', hafen: '⚓', markt: '⚖️', monument: '🗼', schiff: '⛵', fischerei: '🐟' };
+const BUILDING_ICON = {
+  siedlung: '🏠', gut: '🏡', hafen: '⚓', markt: '⚖️', monument: '🏛️', schiff: '⛵', fischerei: '🐟', wachturm: '🗼', limes: '🧱',
+};
+const MIL_ACTION = { attack: 'attack', move: 'moveTroops' };
 const { TERRAIN, SIZE: HEX_SIZE, svg } = Hex;
 const MAPS_KEY = 'archipel-maps';
 
@@ -13,6 +16,8 @@ const $ = (id) => document.getElementById(id);
 
 let state = null;
 let buildMode = null;
+let milMode = null; // 'recruit' | 'attack' | 'move'
+let milSource = null;
 
 // Ein zufälliges Token pro Browser identifiziert den Spieler beim Wiederverbinden.
 function getToken() {
@@ -117,6 +122,8 @@ function savedMaps() {
   }
 }
 
+$('variant').onchange = () => act('setVariant', { variant: $('variant').value });
+
 $('map').onchange = () => {
   const [kind, id] = $('map').value.split(':');
   if (kind === 'local') {
@@ -173,6 +180,10 @@ function renderLobby() {
     random: 'Bei jedem Spiel neu erzeugte Inseln.',
     kontinent: 'Eine zusammenhängende Landmasse ohne Wasser.',
   }[state.map.kind] || 'Grüne Felder mit ❔ werden beim Start zufällig belegt.';
+  const variantSelect = $('variant');
+  variantSelect.replaceChildren(...state.variants.map((v) => el('option', { value: v.id }, v.name)));
+  variantSelect.value = state.variant;
+  variantSelect.disabled = !isHost;
   $('lobby-hint').textContent = isHost
     ? (state.players.length < 2 ? 'Warte auf mindestens einen weiteren Spieler …' : '')
     : 'Warte, bis der Gastgeber das Spiel startet …';
@@ -184,7 +195,19 @@ function currentTargets() {
   if (!state.validTiles) return new Set();
   if (state.phase === 'setup') return new Set(state.validTiles.start);
   if (buildMode) return new Set(state.validTiles[buildMode] || []);
+  if (milMode && state.military) {
+    if (milMode === 'recruit') return new Set(state.military.recruit);
+    if (!milSource) {
+      return new Set(Object.entries(state.military.sources).filter(([, o]) => o[milMode].length).map(([id]) => id));
+    }
+    const options = state.military.sources[milSource];
+    return new Set(options ? options[milMode] : []);
+  }
   return new Set();
+}
+
+function tileById(id) {
+  return state.tiles.find((t) => t.id === id);
 }
 
 function rollHit(tile) {
@@ -199,7 +222,29 @@ function onTileClick(tile) {
   } else if (buildMode) {
     act('build', { type: buildMode, tileId: tile.id });
     buildMode = null;
+  } else if (milMode === 'recruit') {
+    act('recruit', { tileId: tile.id });
+  } else if (milMode && !milSource) {
+    milSource = tile.id;
+    render();
+  } else if (milMode) {
+    const max = tileById(milSource).troops;
+    const count = Math.max(1, Math.min(max, Number($('troop-count').value) || max));
+    act(MIL_ACTION[milMode], { from: milSource, to: tile.id, count });
+    milMode = null;
+    milSource = null;
   }
+}
+
+function tileTitle(tile, terrain) {
+  let title = `${terrain.label}${tile.region ? ` · Region ${tile.region}` : ''}`;
+  if (tile.building) {
+    title += ` · ${state.buildings[tile.building.type]?.name || tile.building.type} von ${playerById(tile.building.owner).name}`;
+    if (state.conquest && tile.terrain !== 'wasser') {
+      title += ` · Truppen: ${tile.troops} · stationär: ${state.conquest.stationary[tile.building.type] || 0}`;
+    }
+  }
+  return title;
 }
 
 function renderBoard() {
@@ -214,14 +259,22 @@ function renderBoard() {
     const classes = ['tile', tile.terrain === 'wasser' ? 'water' : 'land'];
     if (targets.has(tile.id)) classes.push('valid');
     if (rollHit(tile)) classes.push('hit');
+    if (tile.id === milSource) classes.push('selected');
+    if (state.lastBattle && state.lastBattle.tileId === tile.id) classes.push('battle');
     const g = svg('g', { class: classes.join(' ') });
-    const title = svg('title', {}, `${terrain.label}${tile.region ? ` · Region ${tile.region}` : ''}`);
+    const title = svg('title', {}, tileTitle(tile, terrain));
     g.append(title, svg('polygon', { points: Hex.corners(x, y), fill: terrain.color }));
     if (tile.region) g.append(svg('text', { x, y: y - HEX_SIZE * 0.55, 'text-anchor': 'middle', class: 'region-label' }, tile.region));
     if (tile.building) {
       const owner = playerById(tile.building.owner);
       g.append(svg('circle', { cx: x, cy: y + 4, r: HEX_SIZE * 0.45, fill: owner.color, stroke: '#fff', 'stroke-width': 2 }));
       g.append(svg('text', { x, y: y + 12, 'text-anchor': 'middle', 'font-size': 22 }, BUILDING_ICON[tile.building.type]));
+      if (state.conquest && tile.troops > 0) {
+        const bx = x + HEX_SIZE * 0.5;
+        const by = y - HEX_SIZE * 0.3;
+        g.append(svg('circle', { cx: bx, cy: by, r: 12, fill: '#212529', stroke: owner.color, 'stroke-width': 3 }));
+        g.append(svg('text', { x: bx, y: by + 5, 'text-anchor': 'middle', class: 'troop-label' }, tile.troops));
+      }
     } else if (terrain.icon) {
       g.append(svg('text', { x, y: y + 12, 'text-anchor': 'middle', 'font-size': 24, opacity: 0.85 }, terrain.icon));
     }
@@ -231,14 +284,22 @@ function renderBoard() {
   board.replaceChildren(...nodes);
 
   const dice = $('dice');
+  const dieNodes = [];
   if (state.lastRoll && state.phase === 'main') {
-    dice.replaceChildren(
+    dieNodes.push(
       el('div', { class: 'die' }, `Region ${state.lastRoll.region}`),
       el('div', { class: 'die' }, FACE_LABEL[state.lastRoll.face]),
     );
-  } else {
-    dice.replaceChildren();
   }
+  const b = state.lastBattle;
+  if (b) {
+    const defense = [b.defenseTroops, b.defenseStationary, b.defenseTower].join(' + ');
+    dieNodes.push(el('div', { class: 'die battle-info' },
+      `⚔️ ${playerById(b.attacker).name}: ${b.attackTroops} + 🎲${b.attackRoll} = ${b.attackTotal}  vs  `
+      + `🛡️ ${playerById(b.defender).name}: ${defense} + 🎲${b.defenseRoll} = ${b.defenseTotal}  → `
+      + (b.attackerWins ? 'erobert' : 'abgewehrt')));
+  }
+  dice.replaceChildren(...dieNodes);
 }
 
 // ---------- Seitenleiste ----------
@@ -281,6 +342,12 @@ function renderActions() {
     hint.textContent = 'Du bist am Zug – würfle!';
   } else if (buildMode) {
     hint.textContent = `Wähle ein markiertes Feld für: ${state.buildings[buildMode].name}. (Nochmal klicken zum Abbrechen)`;
+  } else if (milMode === 'recruit') {
+    hint.textContent = 'Wähle ein eigenes Gebäude, auf dem eine Truppe ausgehoben wird.';
+  } else if (milMode && !milSource) {
+    hint.textContent = milMode === 'attack' ? 'Wähle das Feld, von dem aus du angreifst.' : 'Wähle das Feld, von dem Truppen abziehen.';
+  } else if (milMode) {
+    hint.textContent = `Wähle das Ziel. Es ziehen ${$('troop-count').value} Truppe(n) (höchstens ${tileById(milSource).troops}).`;
   } else {
     hint.textContent = 'Baue, handle oder beende deinen Zug.';
   }
@@ -297,14 +364,49 @@ function renderActions() {
     btn.disabled = !mainTurn || !state.hasRolled || !affordable || !hasTarget;
     btn.onclick = () => {
       buildMode = buildMode === type ? null : type;
+      milMode = null;
+      milSource = null;
       render();
     };
     return btn;
   }));
 
+  renderMilitary(mainTurn);
+
   const skip = $('force-skip');
   skip.classList.toggle('hidden', !current || current.connected || myTurn);
 }
+
+function renderMilitary(mainTurn) {
+  const panel = $('military-panel');
+  panel.classList.toggle('hidden', !state.conquest);
+  if (!state.conquest) return;
+  const c = state.conquest;
+  const mil = state.military;
+  const info = [
+    `Rekrutieren: ${formatCost(c.recruitCost)} · Angriff: ${formatCost(c.attackCost)}`,
+    state.phase === 'main' && state.round <= c.graceRounds ? `Angriffe erst ab Runde ${c.graceRounds + 1}.` : '',
+    mainTurn && state.hasRolled ? `Diesen Zug noch: ${state.attacksLeft} Angriff(e), ${state.movesLeft} Verlegung(en).` : '',
+  ].filter(Boolean);
+  $('military-info').replaceChildren(...info.map((line) => el('div', {}, line)));
+  const has = (kind) => mil && Object.values(mil.sources).some((o) => o[kind].length > 0);
+  const enabled = { recruit: !!mil && mil.recruit.length > 0, attack: has('attack'), move: has('move') };
+  for (const [mode, id] of [['recruit', 'mil-recruit'], ['attack', 'mil-attack'], ['move', 'mil-move']]) {
+    const btn = $(id);
+    btn.disabled = !enabled[mode];
+    btn.className = `small ${milMode === mode ? 'active' : 'secondary'}`;
+  }
+}
+
+for (const [mode, id] of [['recruit', 'mil-recruit'], ['attack', 'mil-attack'], ['move', 'mil-move']]) {
+  $(id).onclick = () => {
+    milMode = milMode === mode ? null : mode;
+    milSource = null;
+    buildMode = null;
+    render();
+  };
+}
+$('troop-count').oninput = () => render();
 
 function fillSelect(select, options) {
   const previous = select.value;
@@ -359,7 +461,7 @@ function renderTrade() {
 }
 
 $('roll').onclick = () => act('roll');
-$('end-turn').onclick = () => { buildMode = null; act('endTurn'); };
+$('end-turn').onclick = () => { buildMode = null; milMode = null; milSource = null; act('endTurn'); };
 $('force-skip').onclick = () => act('forceSkip');
 $('bank-trade').onclick = () => act('bankTrade', { give: $('bank-give').value, get: $('bank-get').value });
 $('propose-trade').onclick = () => {
@@ -375,6 +477,8 @@ function renderGame() {
   $('turn-info').textContent = current ? `Am Zug: ${current.name}` : '';
   $('game-code').textContent = state.code;
   if (!state.validTiles || !state.validTiles[buildMode]) buildMode = null;
+  if (!state.military) { milMode = null; milSource = null; }
+  if (milSource && !(state.military.sources[milSource])) milSource = null;
 
   renderBoard();
   renderPlayers();

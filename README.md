@@ -40,6 +40,33 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
 - **Verbindungsabbruch:** Neu laden verbindet wieder mit dem Raum. Ist der aktive Spieler getrennt,
   können Mitspieler seinen Zug überspringen.
 
+## Spielvariante „Eroberung“ (Truppen & Kämpfe)
+
+Der Gastgeber wählt in der Lobby die Variante **Klassisch** oder **Eroberung**. In der Eroberung gilt zusätzlich:
+
+- **Truppen** stehen auf eigenen Landgebäuden (max. 6 pro Feld). Jede Start-Siedlung beginnt mit 1 Truppe.
+  - **Rekrutieren:** 1 Nahrung + 1 Erz für 1 Truppe auf einem eigenen Landgebäude.
+  - **Verlegen:** 1× pro Zug beliebig viele Truppen zu einem erreichbaren eigenen Gebäude.
+  - **Angreifen:** ab Runde 3, max. 2× pro Zug, je 1 Nahrung. Ziel ist ein fremdes Landgebäude, das an das
+    Ausgangsfeld grenzt oder über eine Kette **eigener Schiffe** erreichbar ist.
+- **Stationäre Truppen:** Jedes Landgebäude hat eine feste Besatzung, die nur verteidigt, nie mitzieht und
+  nicht verloren geht: Siedlung (Dorf) 1, Gutshof (Stadt) 2, Hafen/Markt/Monument 1, Wachturm 2, Limes 3.
+- **Verteidigungsgebäude** (nur in dieser Variante):
+
+  | Gebäude  | Kosten           | Punkte | Wirkung                                                                 |
+  |----------|------------------|--------|-------------------------------------------------------------------------|
+  | Wachturm | 1 Holz, 2 Stein  | 0      | 2 stationäre Truppen; eigene Nachbargebäude +1 Verteidigung (nicht stapelbar) |
+  | Limes    | 1 Holz, 3 Stein  | 0      | 3 stationäre Truppen; eigene Nachbargebäude können erst angegriffen werden, wenn der Limes gefallen ist |
+
+- **Kampf:** Angreifer = eingesetzte Truppen + 1 Würfel. Verteidiger = Truppen + stationäre Truppen
+  + Wachturm-Bonus + 1 Würfel. Die höhere Summe gewinnt, bei Gleichstand der Verteidiger.
+  - Verlierer: verliert alle beteiligten beweglichen Truppen.
+  - Sieger: verliert die Hälfte (aufgerundet) der gegnerischen beweglichen Truppen.
+  - Siegt der Angreifer, **übernimmt er das Gebäude** (samt Punkten) mit den überlebenden Truppen.
+- Das **letzte Landgebäude** eines Spielers kann nicht angegriffen werden.
+
+Alle Werte stehen gesammelt in `CONQUEST` und `BUILDINGS` in `server/game.js`.
+
 ## Karteneditor
 
 Unter `/editor.html` (Link auf der Startseite und in der Lobby):

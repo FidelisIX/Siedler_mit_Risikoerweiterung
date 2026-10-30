@@ -14,6 +14,9 @@ const BUILDINGS = {
   monument: { name: 'Monument', article: 'ein', cost: { holz: 1, stein: 2, nahrung: 1, erz: 2 }, points: 3, production: 0 },
   schiff: { name: 'Schiff', article: 'ein', cost: { holz: 1, erz: 1 }, points: 0, production: 0 },
   fischerei: { name: 'Fischerei', article: 'eine', cost: { holz: 1, nahrung: 1 }, points: 0, production: 1 },
+  // Nur in der Eroberungs-Variante:
+  wachturm: { name: 'Wachturm', article: 'einen', cost: { holz: 1, stein: 2 }, points: 0, production: 0, conquestOnly: true },
+  limes: { name: 'Limes', article: 'einen', cost: { holz: 1, stein: 3 }, points: 0, production: 0, conquestOnly: true },
 };
 const START_RESOURCES = { holz: 2, stein: 2, nahrung: 2, erz: 1 };
 const COLORS = ['#e8590c', '#1c7ed6', '#2f9e44', '#f59f00', '#ae3ec9', '#0ca678'];
@@ -29,6 +32,24 @@ const MAP_OPTIONS = [
   { kind: 'kontinent', name: 'Kontinent (ohne Wasser)' },
   ...PRESETS.map((p) => ({ kind: 'preset', id: p.id, name: p.name })),
 ];
+
+const VARIANTS = [
+  { id: 'klassisch', name: 'Klassisch' },
+  { id: 'eroberung', name: 'Eroberung (Truppen & Kämpfe)' },
+];
+// Regeln der Eroberungs-Variante.
+const CONQUEST = {
+  recruitCost: { nahrung: 1, erz: 1 },
+  attackCost: { nahrung: 1 },
+  maxGarrison: 6,
+  attacksPerTurn: 2,
+  movesPerTurn: 1,
+  graceRounds: 2, // in diesen ersten Runden sind keine Angriffe erlaubt
+  // Stationäre Truppen: feste Besatzung jedes Landgebäudes. Sie verteidigen nur, ziehen nie
+  // mit und gehen im Kampf nicht verloren.
+  stationary: { siedlung: 1, gut: 2, hafen: 1, markt: 1, monument: 1, wachturm: 2, limes: 3 },
+  towerBonus: 1, // Wachturm: +1 Verteidigung für eigene Nachbargebäude (nicht stapelbar)
+};
 
 class GameError extends Error {}
 
@@ -70,6 +91,10 @@ class Game {
     this.round = 0;
     this.maxRounds = 12;
     this.mapChoice = { kind: 'random', name: MAP_OPTIONS[0].name };
+    this.variant = 'klassisch';
+    this.attacksLeft = 0;
+    this.movesLeft = 0;
+    this.lastBattle = null;
     this.currentIndex = 0;
     this.setupQueue = [];
     this.hasRolled = false;
@@ -147,6 +172,7 @@ class Game {
   }
 
   isValidBuild(tile, playerId, type) {
+    if (!BUILDINGS[type] || (BUILDINGS[type].conquestOnly && !this.isConquest())) return false;
     if (type === 'gut') {
       return !!tile.building && tile.building.owner === playerId && tile.building.type === 'siedlung';
     }
@@ -158,6 +184,8 @@ class Game {
         return this.isPlayable(tile) && this.isCoastal(tile) && this.reachableByLand(tile, playerId);
       case 'markt':
       case 'monument':
+      case 'wachturm':
+      case 'limes':
         return tile.terrain !== 'wasser' && this.reachableByLand(tile, playerId);
       case 'schiff':
         return tile.terrain === 'wasser'
@@ -177,7 +205,7 @@ class Game {
     }
     if (this.phase === 'main' && this.hasRolled) {
       const result = {};
-      for (const type of Object.keys(BUILDINGS)) {
+      for (const type of Object.keys(this.availableBuildings())) {
         result[type] = this.tiles.filter((t) => this.isValidBuild(t, playerId, type)).map((t) => t.id);
       }
       return result;
@@ -255,6 +283,15 @@ class Game {
     this.addLog(`Karte: ${this.mapChoice.name}.`);
   }
 
+  setVariant(playerId, payload) {
+    if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
+    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das ändern.');
+    const variant = VARIANTS.find((v) => v.id === (payload && payload.variant));
+    if (!variant) throw new GameError('Unbekannte Spielvariante.');
+    this.variant = variant.id;
+    this.addLog(`Spielvariante: ${variant.name}.`);
+  }
+
   // Vorschau-Layout für die Lobby (bei Zufallskarten erst beim Start bekannt).
   mapPreview() {
     if (this.mapChoice.kind === 'custom') return this.mapChoice.tiles;
@@ -272,6 +309,7 @@ class Game {
     if (playableCount(tiles) < needed) {
       throw new GameError(`Die Karte ist zu klein: ${this.players.length} Spieler brauchen mindestens ${needed} bebaubare Landfelder.`);
     }
+    for (const t of tiles) t.troops = 0;
     this.tiles = tiles;
     this.tileIndex = new Map(this.tiles.map((t) => [t.id, t]));
     for (const p of this.players) p.resources = { ...START_RESOURCES };
@@ -291,6 +329,7 @@ class Game {
       throw new GameError('Start-Siedlungen brauchen ein freies Landfeld ohne Nachbargebäude (kein Ödland).');
     }
     tile.building = { type: 'siedlung', owner: player.id };
+    if (this.isConquest()) tile.troops = 1;
     this.addLog(`${player.name} gründet eine Start-Siedlung.`);
     this.setupQueue.shift();
     if (this.setupQueue.length === 0) {
@@ -298,6 +337,7 @@ class Game {
       this.round = 1;
       this.currentIndex = 0;
       this.hasRolled = false;
+      this.resetTurnLimits();
       this.addLog(`Runde 1 beginnt. ${this.players[0].name} ist am Zug.`);
     }
   }
@@ -409,6 +449,7 @@ class Game {
     const player = this.requireRolled(playerId);
     this.trade = null;
     this.hasRolled = false;
+    this.resetTurnLimits();
     this.currentIndex++;
     if (this.currentIndex >= this.players.length) {
       this.currentIndex = 0;
@@ -420,6 +461,186 @@ class Game {
       this.addLog(`Runde ${this.round} von ${this.maxRounds} beginnt.`);
     }
     this.addLog(`${player.name} beendet den Zug. ${this.currentPlayer().name} ist am Zug.`);
+  }
+
+  // ---------- Eroberungs-Variante ----------
+
+  availableBuildings() {
+    return Object.fromEntries(Object.entries(BUILDINGS).filter(([, def]) => !def.conquestOnly || this.isConquest()));
+  }
+
+  // Verteidigungswert ohne Würfel: bewegliche + stationäre Truppen + Wachturm in der Nähe.
+  defenseOf(tile) {
+    const owner = tile.building.owner;
+    const stationary = CONQUEST.stationary[tile.building.type] || 0;
+    const tower = this.neighbors(tile).some((n) => n.building && n.building.owner === owner && n.building.type === 'wachturm')
+      ? CONQUEST.towerBonus : 0;
+    return { troops: tile.troops, stationary, tower };
+  }
+
+  // Ein Limes schützt die eigenen Nachbargebäude: Sie können erst angegriffen werden, wenn der Limes fällt.
+  isShielded(tile) {
+    if (tile.building.type === 'limes') return false;
+    return this.neighbors(tile).some((n) => n.building && n.building.owner === tile.building.owner && n.building.type === 'limes');
+  }
+
+  isConquest() {
+    return this.variant === 'eroberung';
+  }
+
+  resetTurnLimits() {
+    this.attacksLeft = this.isConquest() ? CONQUEST.attacksPerTurn : 0;
+    this.movesLeft = this.isConquest() ? CONQUEST.movesPerTurn : 0;
+  }
+
+  // Truppen stehen nur auf eigenen Landgebäuden.
+  isGarrison(tile, playerId) {
+    return !!tile.building && tile.building.owner === playerId && tile.terrain !== 'wasser';
+  }
+
+  // Landfelder, die von einem Feld aus erreichbar sind: direkte Nachbarn oder über eine Kette eigener Schiffe.
+  reachableFrom(source, playerId) {
+    const result = [];
+    const visited = new Set([source.id]);
+    const queue = [source];
+    while (queue.length) {
+      const current = queue.shift();
+      for (const n of this.neighbors(current)) {
+        if (visited.has(n.id)) continue;
+        visited.add(n.id);
+        if (n.terrain !== 'wasser') result.push(n);
+        else if (n.building && n.building.owner === playerId && n.building.type === 'schiff') queue.push(n);
+      }
+    }
+    return result;
+  }
+
+  landBuildingCount(playerId) {
+    return this.tiles.filter((t) => this.isGarrison(t, playerId)).length;
+  }
+
+  canAttack(source, target, playerId) {
+    return !!target.building && target.terrain !== 'wasser' && target.building.owner !== playerId
+      && this.landBuildingCount(target.building.owner) > 1
+      && !this.isShielded(target)
+      && this.reachableFrom(source, playerId).includes(target);
+  }
+
+  canMove(source, target, playerId) {
+    return this.isGarrison(target, playerId) && target.troops < CONQUEST.maxGarrison
+      && this.reachableFrom(source, playerId).includes(target);
+  }
+
+  requireConquest(playerId) {
+    if (!this.isConquest()) throw new GameError('Truppen gibt es nur in der Eroberungs-Variante.');
+    return this.requireRolled(playerId);
+  }
+
+  requireSource(payload, playerId) {
+    const source = this.getTile(payload && payload.from);
+    if (!this.isGarrison(source, playerId)) throw new GameError('Wähle ein eigenes Gebäude als Ausgangspunkt.');
+    const count = Number(payload.count);
+    if (!Number.isInteger(count) || count < 1 || count > source.troops) throw new GameError('Ungültige Truppenzahl.');
+    return { source, count };
+  }
+
+  recruit(playerId, payload) {
+    const player = this.requireConquest(playerId);
+    const tile = this.getTile(payload && payload.tileId);
+    if (!this.isGarrison(tile, playerId)) throw new GameError('Truppen können nur auf eigenen Landgebäuden stehen.');
+    if (tile.troops >= CONQUEST.maxGarrison) throw new GameError(`Maximal ${CONQUEST.maxGarrison} Truppen pro Feld.`);
+    if (!canAfford(player.resources, CONQUEST.recruitCost)) throw new GameError('Nicht genug Rohstoffe.');
+    for (const [res, n] of Object.entries(CONQUEST.recruitCost)) player.resources[res] -= n;
+    tile.troops++;
+    this.addLog(`${player.name} rekrutiert eine Truppe.`);
+  }
+
+  moveTroops(playerId, payload) {
+    const player = this.requireConquest(playerId);
+    if (this.movesLeft <= 0) throw new GameError('Keine Verlegung mehr in diesem Zug.');
+    const { source, count } = this.requireSource(payload, playerId);
+    const target = this.getTile(payload.to);
+    if (!this.canMove(source, target, playerId)) throw new GameError('Dorthin können keine Truppen verlegt werden.');
+    if (target.troops + count > CONQUEST.maxGarrison) throw new GameError(`Maximal ${CONQUEST.maxGarrison} Truppen pro Feld.`);
+    source.troops -= count;
+    target.troops += count;
+    this.movesLeft--;
+    this.addLog(`${player.name} verlegt ${count} Truppe(n).`);
+  }
+
+  // Kampf: Angreifer = eingesetzte Truppen + W6, Verteidiger = Truppen + stationäre Truppen + Wachturm + W6.
+  // Höhere Summe gewinnt, Gleichstand gewinnt der Verteidiger. Der Verlierer verliert alle beweglichen
+  // beteiligten Truppen, der Sieger die Hälfte (aufgerundet) der gegnerischen beweglichen Truppen.
+  // Siegt der Angreifer, übernimmt er das Gebäude mit seinen überlebenden Truppen (mindestens eine überlebt).
+  attack(playerId, payload) {
+    const player = this.requireConquest(playerId);
+    if (this.round <= CONQUEST.graceRounds) throw new GameError(`Angriffe sind erst ab Runde ${CONQUEST.graceRounds + 1} erlaubt.`);
+    if (this.attacksLeft <= 0) throw new GameError('Keine Angriffe mehr in diesem Zug.');
+    const { source, count } = this.requireSource(payload, playerId);
+    const target = this.getTile(payload.to);
+    if (!this.canAttack(source, target, playerId)) {
+      throw new GameError('Dieses Ziel kann nicht angegriffen werden (Reichweite, eigenes oder letztes Gebäude).');
+    }
+    if (!canAfford(player.resources, CONQUEST.attackCost)) throw new GameError('Nicht genug Rohstoffe für den Angriff.');
+    for (const [res, n] of Object.entries(CONQUEST.attackCost)) player.resources[res] -= n;
+    this.attacksLeft--;
+
+    const defender = this.getPlayer(target.building.owner);
+    const defending = target.troops;
+    const { stationary, tower } = this.defenseOf(target);
+    const attackRoll = Math.floor(this.rng() * 6) + 1;
+    const defenseRoll = Math.floor(this.rng() * 6) + 1;
+    const attackTotal = count + attackRoll;
+    const defenseTotal = defending + stationary + tower + defenseRoll;
+    const attackerWins = attackTotal > defenseTotal;
+
+    source.troops -= count;
+    let attackerLosses;
+    let defenderLosses;
+    if (attackerWins) {
+      attackerLosses = Math.min(count - 1, Math.ceil(defending / 2));
+      defenderLosses = defending;
+      target.building.owner = player.id;
+      target.troops = count - attackerLosses;
+    } else {
+      attackerLosses = count;
+      defenderLosses = Math.min(defending, Math.ceil(count / 2));
+      target.troops -= defenderLosses;
+    }
+
+    const buildingName = BUILDINGS[target.building.type].name;
+    this.lastBattle = {
+      attacker: player.id, defender: defender.id, tileId: target.id, building: target.building.type,
+      attackTroops: count, attackRoll, attackTotal,
+      defenseTroops: defending, defenseStationary: stationary, defenseTower: tower, defenseRoll, defenseTotal,
+      attackerWins, attackerLosses, defenderLosses,
+    };
+    this.addLog(attackerWins
+      ? `⚔️ ${player.name} erobert ${defender.name}s ${buildingName} (${attackTotal} gegen ${defenseTotal}).`
+      : `🛡️ ${defender.name} wehrt den Angriff von ${player.name} ab (${defenseTotal} gegen ${attackTotal}).`);
+  }
+
+  militaryOptions(playerId) {
+    if (!this.isConquest() || this.phase !== 'main' || !this.hasRolled) return null;
+    const current = this.currentPlayer();
+    if (!current || current.id !== playerId) return null;
+    const garrisons = this.tiles.filter((t) => this.isGarrison(t, playerId));
+    const canRecruit = canAfford(current.resources, CONQUEST.recruitCost);
+    const attackAllowed = this.round > CONQUEST.graceRounds && this.attacksLeft > 0
+      && canAfford(current.resources, CONQUEST.attackCost);
+    const sources = {};
+    for (const source of garrisons) {
+      if (source.troops < 1) continue;
+      const reachable = this.reachableFrom(source, playerId);
+      sources[source.id] = {
+        attack: attackAllowed ? reachable.filter((t) => this.canAttack(source, t, playerId)).map((t) => t.id) : [],
+        move: this.movesLeft > 0 ? reachable.filter((t) => this.canMove(source, t, playerId)).map((t) => t.id) : [],
+      };
+    }
+    return {
+      recruit: canRecruit ? garrisons.filter((t) => t.troops < CONQUEST.maxGarrison).map((t) => t.id) : [],
+      sources,
+    };
   }
 
   // Ein Mitspieler kann den Zug eines getrennten Spielers überspringen, damit das Spiel weiterläuft.
@@ -463,13 +684,20 @@ class Game {
       mapOptions: MAP_OPTIONS,
       map: { kind: this.mapChoice.kind, id: this.mapChoice.id || null, name: this.mapChoice.name },
       mapPreview: this.phase === 'lobby' ? this.mapPreview() : null,
+      variant: this.variant,
+      variants: VARIANTS,
+      conquest: this.isConquest() ? CONQUEST : null,
+      attacksLeft: this.attacksLeft,
+      movesLeft: this.movesLeft,
+      lastBattle: this.lastBattle,
+      military: this.militaryOptions(viewerId),
       currentPlayerId: current ? current.id : null,
       hasRolled: this.hasRolled,
       lastRoll: this.lastRoll,
       trade: this.trade,
       log: this.log,
       results: this.results,
-      buildings: BUILDINGS,
+      buildings: this.availableBuildings(),
       rates: { bank: BANK_RATE, markt: MARKT_RATE },
       players: this.players.map((p) => ({
         id: p.id,
@@ -487,4 +715,4 @@ class Game {
   }
 }
 
-module.exports = { Game, GameError, BUILDINGS, RESOURCES, START_RESOURCES, TERRAIN_DIE };
+module.exports = { Game, GameError, BUILDINGS, RESOURCES, START_RESOURCES, TERRAIN_DIE, CONQUEST };

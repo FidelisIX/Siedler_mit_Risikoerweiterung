@@ -32,6 +32,11 @@
           <li><b>Wasser:</b> Schiffe liegen neben dem eigenen Hafen oder Schiff und bringen dich zu anderen Inseln.
             Fischereien liegen neben eigenen Landgebäuden und liefern Nahrung, wenn ihre Region gewürfelt wird.</li>
           <li><b>Handel:</b> Mit der Bank (3:1) oder Angebote an Mitspieler.</li>
+          <li><b>Variante Eroberung:</b> Truppen ausheben (1 Nahrung + 1 Erz), verlegen und fremde Landgebäude angreifen
+            (ab Runde 3, max. 2 Angriffe pro Zug, je 1 Nahrung). Kampf: Angreifer = Truppen + Würfel,
+            Verteidiger = Truppen + stationäre Truppen des Gebäudes (Dorf 1, Gutshof 2, Wachturm 2, Limes 3, sonst 1)
+            + 1 bei eigenem Wachturm daneben + Würfel. Gleichstand gewinnt der Verteidiger, der Sieger übernimmt das Gebäude.
+            Ein Limes schützt die eigenen Nachbargebäude, bis er fällt. Das letzte Gebäude eines Spielers ist geschützt.</li>
         </ul>
       </details>
       <p id="home-error" class="error"></p>
@@ -53,6 +58,9 @@
       <svg id="map-preview" class="map-preview hidden" aria-label="Kartenvorschau"></svg>
       <p id="map-info" class="muted small-text"></p>
       <a href="editor.html" target="_blank" class="link">Karteneditor öffnen ↗</a>
+      <label>Spielvariante
+        <select id="variant"></select>
+      </label>
       <button id="start">Spiel starten</button>
       <p id="lobby-hint" class="muted"></p>
       <button id="leave" class="secondary small">Raum verlassen</button>
@@ -87,6 +95,18 @@
           <div id="build-buttons" class="build-buttons"></div>
           <button id="end-turn" class="secondary">Zug beenden</button>
           <button id="force-skip" class="secondary hidden">Getrennten Spieler überspringen</button>
+        </div>
+        <div class="panel hidden" id="military-panel">
+          <h3>Militär</h3>
+          <div id="military-info" class="small-text muted"></div>
+          <div class="row">
+            <button id="mil-recruit" class="small secondary">🪖 Rekrutieren</button>
+            <button id="mil-attack" class="small secondary">⚔️ Angreifen</button>
+            <button id="mil-move" class="small secondary">➡️ Verlegen</button>
+          </div>
+          <label class="row small-text">Truppen pro Zug/Angriff
+            <input id="troop-count" type="number" min="1" max="6" value="6">
+          </label>
         </div>
         <div class="panel" id="trade-panel">
           <h3>Handel</h3>

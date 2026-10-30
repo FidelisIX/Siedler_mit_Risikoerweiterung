@@ -14,6 +14,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACTIONS = new Set([
   'setRounds', 'setMap', 'start', 'placeStart', 'roll', 'build',
   'bankTrade', 'proposeTrade', 'respondTrade', 'cancelTrade', 'endTurn', 'forceSkip',
+  'setVariant', 'recruit', 'moveTroops', 'attack',
 ]);
 
 const app = express();

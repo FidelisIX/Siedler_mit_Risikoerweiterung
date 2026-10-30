@@ -308,3 +308,142 @@ test('Wasser: Fischerei produziert Nahrung, wenn ihre Region gewürfelt wird', (
   game.roll('p1');
   assert.equal(game.players[0].resources.nahrung, 1);
 });
+
+// ---------- Eroberungs-Variante ----------
+
+// Streifen aus Landfeldern: 0,0 … 7,0 (alle Acker), dazu eine zweite Reihe als Reserve.
+function conquestGame() {
+  const tiles = Array.from({ length: 16 }, (_, i) => ({ q: i % 8, r: Math.floor(i / 8) * 3, terrain: 'acker' }));
+  const game = newGame(2, seeded(5), { kind: 'custom', map: { name: 'Front', tiles } });
+  game.setVariant('p0', { variant: 'eroberung' });
+  game.start('p0');
+  for (const t of game.tiles) { t.building = null; t.troops = 0; }
+  game.phase = 'main';
+  game.round = 3;
+  game.setupQueue = [];
+  game.hasRolled = true;
+  game.resetTurnLimits();
+  for (const p of game.players) p.resources = { holz: 20, stein: 20, nahrung: 20, erz: 20 };
+  const put = (id, type, owner, troops = 0) => {
+    const tile = game.getTile(id);
+    tile.building = { type, owner };
+    tile.troops = troops;
+    return tile;
+  };
+  return { game, put };
+}
+
+test('Eroberung: nur als Variante, Wachturm und Limes nur dort baubar', () => {
+  const game = newGame(2);
+  assert.throws(() => game.setVariant('p1', { variant: 'eroberung' }), /Gastgeber/);
+  assert.throws(() => game.setVariant('p0', { variant: 'krieg' }), GameError);
+  game.start('p0');
+  finishSetup(game);
+  game.roll('p0');
+  assert.equal(game.validTiles('p0').wachturm, undefined);
+  assert.equal(game.publicState('p0').buildings.limes, undefined);
+  assert.throws(() => game.recruit('p0', { tileId: game.tiles.find((t) => t.building).id }), /Eroberungs-Variante/);
+
+  const conquest = newGame(2);
+  conquest.setVariant('p0', { variant: 'eroberung' });
+  conquest.start('p0');
+  finishSetup(conquest);
+  assert.ok(conquest.tiles.filter((t) => t.building).every((t) => t.troops === 1), 'Start-Siedlungen haben 1 Truppe');
+  conquest.roll('p0');
+  assert.ok(Array.isArray(conquest.validTiles('p0').wachturm));
+});
+
+test('Eroberung: rekrutieren, verlegen, Limits', () => {
+  const { game, put } = conquestGame();
+  put('0,0', 'siedlung', 'p0', 0);
+  put('1,0', 'gut', 'p0', 5);
+  put('5,0', 'siedlung', 'p1');
+  put('7,0', 'siedlung', 'p1');
+  game.recruit('p0', { tileId: '0,0' });
+  assert.equal(game.getTile('0,0').troops, 1);
+  assert.equal(game.players[0].resources.erz, 19);
+  game.recruit('p0', { tileId: '1,0' });
+  assert.throws(() => game.recruit('p0', { tileId: '1,0' }), /Maximal 6/);
+  assert.throws(() => game.recruit('p0', { tileId: '5,0' }), GameError);
+
+  game.moveTroops('p0', { from: '1,0', to: '0,0', count: 3 });
+  assert.equal(game.getTile('0,0').troops, 4);
+  assert.throws(() => game.moveTroops('p0', { from: '0,0', to: '1,0', count: 1 }), /Keine Verlegung/);
+});
+
+test('Eroberung: Schonfrist und stationäre Truppen im Kampf', () => {
+  const { game, put } = conquestGame();
+  put('2,0', 'siedlung', 'p0', 4);
+  const village = put('3,0', 'siedlung', 'p1', 0);
+  put('7,0', 'siedlung', 'p1');
+
+  game.round = 2;
+  assert.throws(() => game.attack('p0', { from: '2,0', to: '3,0', count: 4 }), /ab Runde 3/);
+  game.round = 3;
+
+  // 4 + 2 = 6 gegen 0 Truppen + 1 stationär (Dorf) + 5 = 6 -> Gleichstand, Verteidiger gewinnt
+  game.rng = scripted([2, 5]);
+  game.attack('p0', { from: '2,0', to: '3,0', count: 4 });
+  assert.equal(game.lastBattle.defenseStationary, 1);
+  assert.equal(game.lastBattle.attackerWins, false);
+  assert.equal(game.getTile('2,0').troops, 0);
+  assert.equal(village.building.owner, 'p1');
+  assert.equal(game.players[0].resources.nahrung, 19, 'Angriff kostet 1 Nahrung');
+});
+
+test('Eroberung: Sieg übernimmt das Gebäude, Verluste nach Regel', () => {
+  const { game, put } = conquestGame();
+  put('2,0', 'siedlung', 'p0', 5);
+  const city = put('3,0', 'gut', 'p1', 2);
+  put('7,0', 'siedlung', 'p1');
+  // 5 + 6 = 11 gegen 2 + 2 (Stadt stationär) + 1 = 5 -> Angreifer gewinnt, verliert ceil(2/2) = 1
+  game.rng = scripted([6, 1]);
+  game.attack('p0', { from: '2,0', to: '3,0', count: 5 });
+  assert.equal(game.lastBattle.attackerWins, true);
+  assert.equal(city.building.owner, 'p0');
+  assert.equal(city.troops, 4);
+  assert.equal(game.points('p0'), 3);
+  assert.equal(game.points('p1'), 1);
+  // Das letzte Gebäude eines Spielers ist geschützt.
+  put('6,0', 'siedlung', 'p0', 3);
+  assert.equal(game.canAttack(game.getTile('6,0'), game.getTile('7,0'), 'p0'), false);
+});
+
+test('Eroberung: Wachturm stärkt Nachbarn, Limes schirmt Nachbarn ab', () => {
+  const { game, put } = conquestGame();
+  put('2,0', 'siedlung', 'p0', 3);
+  put('3,0', 'siedlung', 'p1', 0);
+  put('4,0', 'wachturm', 'p1', 0);
+  put('7,0', 'siedlung', 'p1');
+  assert.deepEqual(game.defenseOf(game.getTile('3,0')), { troops: 0, stationary: 1, tower: 1 });
+  assert.deepEqual(game.defenseOf(game.getTile('4,0')), { troops: 0, stationary: 2, tower: 0 });
+
+  // Limes neben dem Dorf: Dorf ist geschützt, der Limes selbst angreifbar.
+  put('4,0', 'limes', 'p1', 0);
+  assert.equal(game.canAttack(game.getTile('2,0'), game.getTile('3,0'), 'p0'), false);
+  const options = game.militaryOptions('p0');
+  assert.deepEqual(options.sources['2,0'].attack, []);
+  put('3,0', 'siedlung', 'p0', 3);
+  assert.deepEqual(game.militaryOptions('p0').sources['3,0'].attack, ['4,0']);
+});
+
+test('Eroberung: Angriffe über eigene Schiffe', () => {
+  const tiles = [
+    { q: 0, r: 0, terrain: 'acker' }, { q: 1, r: 0, terrain: 'wasser' }, { q: 2, r: 0, terrain: 'acker' },
+    ...Array.from({ length: 12 }, (_, i) => ({ q: i - 3, r: 4, terrain: 'acker' })),
+  ];
+  const game = newGame(2, seeded(9), { kind: 'custom', map: { name: 'Meerenge', tiles } });
+  game.setVariant('p0', { variant: 'eroberung' });
+  game.start('p0');
+  for (const t of game.tiles) { t.building = null; t.troops = 0; }
+  Object.assign(game, { phase: 'main', round: 3, setupQueue: [], hasRolled: true });
+  game.resetTurnLimits();
+  game.players[0].resources = { holz: 5, stein: 5, nahrung: 5, erz: 5 };
+  game.getTile('0,0').building = { type: 'hafen', owner: 'p0' };
+  game.getTile('0,0').troops = 3;
+  game.getTile('2,0').building = { type: 'siedlung', owner: 'p1' };
+  game.getTile('-3,4').building = { type: 'siedlung', owner: 'p1' };
+  assert.equal(game.canAttack(game.getTile('0,0'), game.getTile('2,0'), 'p0'), false);
+  game.getTile('1,0').building = { type: 'schiff', owner: 'p0' };
+  assert.equal(game.canAttack(game.getTile('0,0'), game.getTile('2,0'), 'p0'), true);
+});
