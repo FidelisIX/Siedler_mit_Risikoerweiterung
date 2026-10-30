@@ -1,0 +1,1122 @@
+{
+  "$schema_note": "Maschinenlesbare RISIKO-Regeln. Kanonische Ausgabe: Hasbro B7404 (2015, deutsch). Feld 'source' verweist auf 'sources'. Felder mit 'verified': false sind nicht durch die Primärquelle belegt.",
+  "game": "RISIKO",
+  "edition": "Hasbro B7404 (2015)",
+  "language": "de",
+  "sources": {
+    "hasbro_b7404_de": {
+      "title": "RISIKO Regelbuch (Hasbro, Art.-Nr. B7404, © 2015), deutsch",
+      "url": "https://consumercare.hasbro.com/api/download/B7404_de-de",
+      "trust": "hoch – offizielle Herstelleranleitung, Primärquelle"
+    },
+    "hasbro_b7404_de_ch": {
+      "title": "RISIKO Regelbuch B7404 (Druck 0216B7404100), via Spielezar",
+      "url": "https://www.spielezar.ch/modules/genzo_zar/views/pdf/spielregeln-risiko.pdf",
+      "trust": "hoch – identische Herstelleranleitung, gespiegelt bei Händler"
+    },
+    "hasbro_1999_de": {
+      "title": "RISIKO – Das große Strategie-Spiel (Hasbro, 1999), deutsch",
+      "url": "https://www.spiele4us.de/wp-content/uploads/2022/10/risiko-das-grosse-strategie-spiel-gebraucht-g003201160.pdf",
+      "trust": "hoch – Herstelleranleitung (ältere Ausgabe), gespiegelt bei Händler"
+    },
+    "hasbro_2004_de": {
+      "title": "RISIKO Kommandobuch (Hasbro, © 2004), deutsch",
+      "url": "https://www.spiele4us.de/wp-content/uploads/2022/10/risiko-classic-gebraucht_g003201340.pdf",
+      "trust": "hoch – Herstelleranleitung (ältere Ausgabe), gespiegelt bei Händler"
+    },
+    "wikipedia_en": {
+      "title": "Risk (game) – Wikipedia (en)",
+      "url": "https://en.wikipedia.org/wiki/Risk_(game)",
+      "trust": "mittel – Tertiärquelle, für Gebietsliste und Zahl der Verbindungen (83)"
+    },
+    "wikipedia_de": {
+      "title": "Risiko (Spiel) – Wikipedia (de)",
+      "url": "https://de.wikipedia.org/wiki/Risiko_(Spiel)",
+      "trust": "mittel – Tertiärquelle, für Kontinentboni und Zahl der Außengrenzen"
+    },
+    "kent_faq": {
+      "title": "Risk FAQ v5.61 (University of Kent, Stand 2006)",
+      "url": "https://www.kent.ac.uk/ims/personal/odl/riskfaq.htm",
+      "trust": "mittel – Fan-FAQ, gut gepflegt, aber veraltet; für Missionstexte älterer Ausgaben"
+    },
+    "osborne_2003": {
+      "title": "Osborne, J. A. (2003): Markov Chains for the RISK Board Game Revisited. Mathematics Magazine 76(2), 129–135",
+      "url": "https://doi.org/10.1080/0025570X.2003.11953165",
+      "trust": "hoch – begutachtete Fachzeitschrift (MAA); Werte hier zusätzlich selbst durch vollständige Aufzählung berechnet"
+    }
+  },
+  "components": {
+    "board": {
+      "continents": 6,
+      "territories": 42,
+      "source": "hasbro_b7404_de"
+    },
+    "armies": {
+      "count": 5,
+      "per_army": {
+        "infantry": 40,
+        "cavalry": 12,
+        "artillery": 8
+      },
+      "colors_mentioned_in_rulebook": [
+        "blau",
+        "gelb",
+        "orange",
+        "grün"
+      ],
+      "colors_note": "Die Anleitung nennt nicht alle 5 Farben im Text; Abbildung zeigt u. a. blau, schwarz, rot, grün, orange. Nicht verifiziert.",
+      "source": "hasbro_b7404_de"
+    },
+    "unit_values": {
+      "infantry": 1,
+      "cavalry": 5,
+      "artillery": 10,
+      "note": "Figuren dürfen jederzeit wertgleich getauscht werden (Platzsparen). Truppenvorrat gilt als unbegrenzt (FAQ: Ersatzmarker erlaubt).",
+      "source": "hasbro_b7404_de"
+    },
+    "cards": {
+      "territory_cards": 42,
+      "wild_cards": 2,
+      "mission_cards": 12,
+      "total": 56,
+      "territory_card_symbols": [
+        "infantry",
+        "cavalry",
+        "artillery"
+      ],
+      "wild_card_symbols": "alle drei",
+      "symbol_per_territory": {
+        "verified": false,
+        "note": "Welches Gebiet welches Symbol trägt, steht nicht in der Anleitung (nur auf den Karten)."
+      },
+      "source": "hasbro_b7404_de"
+    },
+    "dice": {
+      "total": 5,
+      "attacker": {
+        "count": 3,
+        "color": "rot"
+      },
+      "defender": {
+        "count": 2,
+        "color": "blau"
+      },
+      "sides": 6,
+      "source": "hasbro_b7404_de"
+    }
+  },
+  "map": {
+    "edge_count": 83,
+    "edges_are_bidirectional": true,
+    "note": "Nachbarschaften (Landgrenzen und Seestraßen zusammen) nach Standard-Spielplan. Prüfung: 83 Angriffswege (wikipedia_en) und Außengrenzen je Kontinent NA 3, SA 2, EU 4, AF 3, AS 5, AU 1 (wikipedia_de) stimmen überein. Nicht gegen den physischen B7404-Plan geprüft. Ältere Ausgaben (40th Anniversary) ohne Verbindung Ostafrika–Naher Osten.",
+    "source": [
+      "wikipedia_en",
+      "wikipedia_de",
+      "hasbro_b7404_de"
+    ],
+    "continents": [
+      {
+        "id": "north_america",
+        "name_de": "Nordamerika",
+        "name_en": "North America",
+        "bonus": 5,
+        "territories": [
+          "alaska",
+          "northwest_territory",
+          "greenland",
+          "alberta",
+          "ontario",
+          "quebec",
+          "western_united_states",
+          "eastern_united_states",
+          "central_america"
+        ],
+        "border_territories": [
+          "alaska",
+          "greenland",
+          "central_america"
+        ]
+      },
+      {
+        "id": "south_america",
+        "name_de": "Südamerika",
+        "name_en": "South America",
+        "bonus": 2,
+        "territories": [
+          "venezuela",
+          "peru",
+          "brazil",
+          "argentina"
+        ],
+        "border_territories": [
+          "venezuela",
+          "brazil"
+        ]
+      },
+      {
+        "id": "europe",
+        "name_de": "Europa",
+        "name_en": "Europe",
+        "bonus": 5,
+        "territories": [
+          "iceland",
+          "great_britain",
+          "scandinavia",
+          "northern_europe",
+          "western_europe",
+          "southern_europe",
+          "ukraine"
+        ],
+        "border_territories": [
+          "iceland",
+          "western_europe",
+          "southern_europe",
+          "ukraine"
+        ]
+      },
+      {
+        "id": "africa",
+        "name_de": "Afrika",
+        "name_en": "Africa",
+        "bonus": 3,
+        "territories": [
+          "north_africa",
+          "egypt",
+          "east_africa",
+          "congo",
+          "south_africa",
+          "madagascar"
+        ],
+        "border_territories": [
+          "north_africa",
+          "egypt",
+          "east_africa"
+        ]
+      },
+      {
+        "id": "asia",
+        "name_de": "Asien",
+        "name_en": "Asia",
+        "bonus": 7,
+        "territories": [
+          "ural",
+          "siberia",
+          "yakutsk",
+          "kamchatka",
+          "irkutsk",
+          "mongolia",
+          "japan",
+          "afghanistan",
+          "china",
+          "middle_east",
+          "india",
+          "siam"
+        ],
+        "border_territories": [
+          "ural",
+          "kamchatka",
+          "afghanistan",
+          "middle_east",
+          "siam"
+        ]
+      },
+      {
+        "id": "australia",
+        "name_de": "Australien",
+        "name_en": "Australia",
+        "bonus": 2,
+        "territories": [
+          "indonesia",
+          "new_guinea",
+          "western_australia",
+          "eastern_australia"
+        ],
+        "border_territories": [
+          "indonesia"
+        ]
+      }
+    ],
+    "territories": [
+      {
+        "id": "alaska",
+        "name_de": "Alaska",
+        "name_en": "Alaska",
+        "continent": "north_america",
+        "neighbors": [
+          "northwest_territory",
+          "alberta",
+          "kamchatka"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "northwest_territory",
+        "name_de": "Nordwest-Territorium",
+        "name_en": "Northwest Territory",
+        "continent": "north_america",
+        "neighbors": [
+          "alaska",
+          "alberta",
+          "ontario",
+          "greenland"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "greenland",
+        "name_de": "Grönland",
+        "name_en": "Greenland",
+        "continent": "north_america",
+        "neighbors": [
+          "northwest_territory",
+          "ontario",
+          "quebec",
+          "iceland"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "alberta",
+        "name_de": "Alberta",
+        "name_en": "Alberta",
+        "continent": "north_america",
+        "neighbors": [
+          "alaska",
+          "northwest_territory",
+          "ontario",
+          "western_united_states"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "ontario",
+        "name_de": "Ontario",
+        "name_en": "Ontario",
+        "continent": "north_america",
+        "neighbors": [
+          "northwest_territory",
+          "alberta",
+          "greenland",
+          "quebec",
+          "western_united_states",
+          "eastern_united_states"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "quebec",
+        "name_de": "Quebec",
+        "name_en": "Quebec",
+        "continent": "north_america",
+        "neighbors": [
+          "ontario",
+          "greenland",
+          "eastern_united_states"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "western_united_states",
+        "name_de": "Weststaaten",
+        "name_en": "Western United States",
+        "continent": "north_america",
+        "neighbors": [
+          "alberta",
+          "ontario",
+          "eastern_united_states",
+          "central_america"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "eastern_united_states",
+        "name_de": "Oststaaten",
+        "name_en": "Eastern United States",
+        "continent": "north_america",
+        "neighbors": [
+          "western_united_states",
+          "ontario",
+          "quebec",
+          "central_america"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "central_america",
+        "name_de": "Mittelamerika",
+        "name_en": "Central America",
+        "continent": "north_america",
+        "neighbors": [
+          "western_united_states",
+          "eastern_united_states",
+          "venezuela"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "venezuela",
+        "name_de": "Venezuela",
+        "name_en": "Venezuela",
+        "continent": "south_america",
+        "neighbors": [
+          "central_america",
+          "peru",
+          "brazil"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "peru",
+        "name_de": "Peru",
+        "name_en": "Peru",
+        "continent": "south_america",
+        "neighbors": [
+          "venezuela",
+          "brazil",
+          "argentina"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "brazil",
+        "name_de": "Brasilien",
+        "name_en": "Brazil",
+        "continent": "south_america",
+        "neighbors": [
+          "venezuela",
+          "peru",
+          "argentina",
+          "north_africa"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "argentina",
+        "name_de": "Argentinien",
+        "name_en": "Argentina",
+        "continent": "south_america",
+        "neighbors": [
+          "peru",
+          "brazil"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "iceland",
+        "name_de": "Island",
+        "name_en": "Iceland",
+        "continent": "europe",
+        "neighbors": [
+          "greenland",
+          "great_britain",
+          "scandinavia"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "great_britain",
+        "name_de": "Großbritannien",
+        "name_en": "Great Britain",
+        "continent": "europe",
+        "neighbors": [
+          "iceland",
+          "scandinavia",
+          "northern_europe",
+          "western_europe"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "scandinavia",
+        "name_de": "Skandinavien",
+        "name_en": "Scandinavia",
+        "continent": "europe",
+        "neighbors": [
+          "iceland",
+          "great_britain",
+          "northern_europe",
+          "ukraine"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "northern_europe",
+        "name_de": "Nordeuropa",
+        "name_en": "Northern Europe",
+        "continent": "europe",
+        "neighbors": [
+          "great_britain",
+          "scandinavia",
+          "ukraine",
+          "southern_europe",
+          "western_europe"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "western_europe",
+        "name_de": "Westeuropa",
+        "name_en": "Western Europe",
+        "continent": "europe",
+        "neighbors": [
+          "great_britain",
+          "northern_europe",
+          "southern_europe",
+          "north_africa"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "southern_europe",
+        "name_de": "Südeuropa",
+        "name_en": "Southern Europe",
+        "continent": "europe",
+        "neighbors": [
+          "western_europe",
+          "northern_europe",
+          "ukraine",
+          "middle_east",
+          "egypt",
+          "north_africa"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "ukraine",
+        "name_de": "Ukraine",
+        "name_en": "Ukraine",
+        "continent": "europe",
+        "neighbors": [
+          "scandinavia",
+          "northern_europe",
+          "southern_europe",
+          "middle_east",
+          "afghanistan",
+          "ural"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "north_africa",
+        "name_de": "Nordafrika",
+        "name_en": "North Africa",
+        "continent": "africa",
+        "neighbors": [
+          "brazil",
+          "western_europe",
+          "southern_europe",
+          "egypt",
+          "east_africa",
+          "congo"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "egypt",
+        "name_de": "Ägypten",
+        "name_en": "Egypt",
+        "continent": "africa",
+        "neighbors": [
+          "north_africa",
+          "southern_europe",
+          "middle_east",
+          "east_africa"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "east_africa",
+        "name_de": "Ostafrika",
+        "name_en": "East Africa",
+        "continent": "africa",
+        "neighbors": [
+          "egypt",
+          "north_africa",
+          "congo",
+          "south_africa",
+          "madagascar",
+          "middle_east"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "congo",
+        "name_de": "Kongo",
+        "name_en": "Congo",
+        "continent": "africa",
+        "neighbors": [
+          "north_africa",
+          "east_africa",
+          "south_africa"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "south_africa",
+        "name_de": "Südafrika",
+        "name_en": "South Africa",
+        "continent": "africa",
+        "neighbors": [
+          "congo",
+          "east_africa",
+          "madagascar"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "madagascar",
+        "name_de": "Madagaskar",
+        "name_en": "Madagascar",
+        "continent": "africa",
+        "neighbors": [
+          "south_africa",
+          "east_africa"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "ural",
+        "name_de": "Ural",
+        "name_en": "Ural",
+        "continent": "asia",
+        "neighbors": [
+          "ukraine",
+          "siberia",
+          "china",
+          "afghanistan"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "siberia",
+        "name_de": "Sibirien",
+        "name_en": "Siberia",
+        "continent": "asia",
+        "neighbors": [
+          "ural",
+          "yakutsk",
+          "irkutsk",
+          "mongolia",
+          "china"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "yakutsk",
+        "name_de": "Jakutien",
+        "name_en": "Yakutsk",
+        "continent": "asia",
+        "neighbors": [
+          "siberia",
+          "irkutsk",
+          "kamchatka"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "kamchatka",
+        "name_de": "Kamtschatka",
+        "name_en": "Kamchatka",
+        "continent": "asia",
+        "neighbors": [
+          "yakutsk",
+          "irkutsk",
+          "mongolia",
+          "japan",
+          "alaska"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "irkutsk",
+        "name_de": "Irkutsk",
+        "name_en": "Irkutsk",
+        "continent": "asia",
+        "neighbors": [
+          "siberia",
+          "yakutsk",
+          "kamchatka",
+          "mongolia"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "mongolia",
+        "name_de": "Mongolei",
+        "name_en": "Mongolia",
+        "continent": "asia",
+        "neighbors": [
+          "siberia",
+          "irkutsk",
+          "kamchatka",
+          "japan",
+          "china"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "japan",
+        "name_de": "Japan",
+        "name_en": "Japan",
+        "continent": "asia",
+        "neighbors": [
+          "kamchatka",
+          "mongolia"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "afghanistan",
+        "name_de": "Afghanistan",
+        "name_en": "Afghanistan",
+        "continent": "asia",
+        "neighbors": [
+          "ukraine",
+          "ural",
+          "china",
+          "india",
+          "middle_east"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "china",
+        "name_de": "China",
+        "name_en": "China",
+        "continent": "asia",
+        "neighbors": [
+          "afghanistan",
+          "ural",
+          "siberia",
+          "mongolia",
+          "siam",
+          "india"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "middle_east",
+        "name_de": "Naher Osten",
+        "name_en": "Middle East",
+        "continent": "asia",
+        "neighbors": [
+          "ukraine",
+          "southern_europe",
+          "egypt",
+          "east_africa",
+          "afghanistan",
+          "india"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "india",
+        "name_de": "Indien",
+        "name_en": "India",
+        "continent": "asia",
+        "neighbors": [
+          "middle_east",
+          "afghanistan",
+          "china",
+          "siam"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "siam",
+        "name_de": "Siam",
+        "name_en": "Siam",
+        "continent": "asia",
+        "neighbors": [
+          "india",
+          "china",
+          "indonesia"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "indonesia",
+        "name_de": "Indonesien",
+        "name_en": "Indonesia",
+        "continent": "australia",
+        "neighbors": [
+          "siam",
+          "new_guinea",
+          "western_australia"
+        ],
+        "name_de_verified": true
+      },
+      {
+        "id": "new_guinea",
+        "name_de": "Neuguinea",
+        "name_en": "New Guinea",
+        "continent": "australia",
+        "neighbors": [
+          "indonesia",
+          "western_australia",
+          "eastern_australia"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "western_australia",
+        "name_de": "Westaustralien",
+        "name_en": "Western Australia",
+        "continent": "australia",
+        "neighbors": [
+          "indonesia",
+          "new_guinea",
+          "eastern_australia"
+        ],
+        "name_de_verified": false
+      },
+      {
+        "id": "eastern_australia",
+        "name_de": "Ostaustralien",
+        "name_en": "Eastern Australia",
+        "continent": "australia",
+        "neighbors": [
+          "new_guinea",
+          "western_australia"
+        ],
+        "name_de_verified": false
+      }
+    ]
+  },
+  "setup": {
+    "starting_infantry_by_player_count": {
+      "3": 35,
+      "4": 30,
+      "5": 25
+    },
+    "duel_2_players": 40,
+    "first_player": "Jeder wirft einen Würfel; höchste Zahl beginnt; danach im Uhrzeigersinn.",
+    "mission_variant_territory_assignment": [
+      "Joker aus den Gebietskarten entfernen",
+      "42 Gebietskarten mischen und vollständig verteilen (bei 4 oder 5 Spielern erhalten zwei Spieler eine Karte mehr)",
+      "Jeder setzt 1 Infanterie auf jedes seiner Gebiete",
+      "Reihum (Jüngster beginnt) je 1 weitere Infanterie auf eigene Gebiete, bis alle Starteinheiten gesetzt sind",
+      "Gebietskarten + 2 Joker mischen → verdeckter Zugstapel"
+    ],
+    "classic_variant_territory_assignment": [
+      "Höchster Wurf setzt zuerst 1 Infanterie auf ein freies Gebiet, dann reihum, bis alle 42 Gebiete besetzt sind",
+      "Danach reihum je 1 Infanterie auf eigene Gebiete, bis alle Starteinheiten gesetzt sind",
+      "Missionskarten entfernen; Gebietskarten + Joker mischen → Zugstapel",
+      "Wer die erste Infanterie gesetzt hat, beginnt"
+    ],
+    "invariant": "Kein Gebiet darf jemals leer sein (mindestens 1 Einheit).",
+    "source": "hasbro_b7404_de"
+  },
+  "turn": {
+    "phases": [
+      "reinforce",
+      "attack",
+      "fortify"
+    ],
+    "attack_optional": true,
+    "fortify_optional": true,
+    "next_player": "links (im Uhrzeigersinn)",
+    "source": "hasbro_b7404_de"
+  },
+  "reinforcement": {
+    "territories": {
+      "formula": "floor(owned_territories / 3)",
+      "minimum": 3,
+      "examples": {
+        "11": 3,
+        "14": 4,
+        "17": 5
+      }
+    },
+    "continent_bonus": {
+      "condition": "Kontinent zu Beginn des Zugs vollständig besetzt",
+      "values": {
+        "north_america": 5,
+        "south_america": 2,
+        "europe": 5,
+        "africa": 3,
+        "asia": 7,
+        "australia": 2
+      },
+      "values_source": [
+        "hasbro_1999_de",
+        "wikipedia_de"
+      ],
+      "values_note": "Die B7404-Anleitung verweist auf die Zahlen auf dem Spielplan; Werte aus 1999er Anleitung und de.wikipedia (übereinstimmend)."
+    },
+    "placement": "Frei auf eigene Gebiete verteilen.",
+    "applies_from_first_turn": true,
+    "source": "hasbro_b7404_de"
+  },
+  "cards": {
+    "draw": {
+      "condition": "mindestens 1 Gebiet in diesem Zug erobert",
+      "amount": 1,
+      "timing": "Ende der Angriffsphase",
+      "note": "Maximal 1 Karte pro Zug, egal wie viele Eroberungen."
+    },
+    "valid_sets": [
+      {
+        "type": "three_of_a_kind",
+        "desc": "3× dasselbe Symbol"
+      },
+      {
+        "type": "one_of_each",
+        "desc": "je 1 Infanterie, Kavallerie, Artillerie"
+      },
+      {
+        "type": "two_plus_wild",
+        "desc": "2× dasselbe Symbol + Joker"
+      }
+    ],
+    "valid_sets_note": "Andere Kombinationen mit Joker (z. B. 2 verschiedene + Joker) sind in B7404 nicht abgebildet – Status ungeklärt.",
+    "trade_timing": "Zu Beginn des eigenen Zugs (Verstärkungsphase); Ausnahme: nach Ausschalten eines Gegners.",
+    "forced_trade": "Bei 5 oder 6 Karten muss getauscht werden (ein zweiter Satz darf zusätzlich getauscht werden).",
+    "set_values": {
+      "global_counter": true,
+      "sequence": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        15
+      ],
+      "after_sixth": "+5 je Satz (7. = 20, 8. = 25, …)",
+      "formula": "n<=5: 2n+2; n>=6: 5n-15"
+    },
+    "owned_territory_bonus": {
+      "units": 2,
+      "placement": "direkt auf das betreffende Gebiet",
+      "ambiguity": "Text: 'Wenn das Gebiet einer Karte, die Sie eintauschen, Ihnen gehört' – ob pro Karte oder einmal pro Satz/Zug, ist nicht eindeutig."
+    },
+    "source": "hasbro_b7404_de"
+  },
+  "attack": {
+    "preconditions": [
+      "Ziel ist gegnerisch und benachbart (Grenze oder Seestraße)",
+      "Angriffsgebiet hat mindestens 2 Einheiten"
+    ],
+    "attacker_dice": "1 bis 3, höchstens (Einheiten im Angriffsgebiet − 1)",
+    "defender_dice": "1 oder 2 nach Wahl des Verteidigers, höchstens Einheiten im Gebiet",
+    "resolution": [
+      "Beide würfeln gleichzeitig",
+      "Würfel absteigend sortieren und paarweise vergleichen (höchster gegen höchsten, zweithöchster gegen zweithöchsten)",
+      "Überzählige niedrigste Würfel werden ignoriert",
+      "Höherer Angreiferwürfel → Verteidiger verliert 1 Einheit",
+      "Gleichstand oder höherer Verteidigerwürfel → Angreifer verliert 1 Einheit (aus dem Angriffsgebiet)"
+    ],
+    "max_losses_per_roll": 2,
+    "repeat": "Beliebig viele Angriffe, auch nach Niederlagen und auf verschiedene Ziele.",
+    "conquest": {
+      "trigger": "letzte Verteidigungseinheit entfernt",
+      "move_in": "überlebende angreifende Einheiten ziehen ein; optional weitere aus dem Angriffsgebiet",
+      "must_leave": 1,
+      "edition_note": "1999er Anleitung: mindestens so viele Einheiten einziehen wie Würfel im letzten Angriff. B7404 formuliert: 'marschieren mit Ihren überlebenden Einheiten ein'."
+    },
+    "eliminate_player": {
+      "effect": "Ausgeschiedener Spieler gibt alle Gebietskarten an den Eroberer",
+      "if_cards_ge_6": "Sofort Sätze tauschen, bis höchstens 4 Karten übrig",
+      "if_cards_lt_6": "Tausch erst zu Beginn des nächsten Zugs"
+    },
+    "source": "hasbro_b7404_de"
+  },
+  "battle_probabilities": {
+    "note": "Exakt durch Aufzählung aller Würfelkombinationen berechnet; stimmt mit osborne_2003 überein. Schlüssel: Verluste Angreifer/Verteidiger.",
+    "table": [
+      {
+        "attacker_dice": 1,
+        "defender_dice": 1,
+        "outcomes": {
+          "A0/D1": "15/36",
+          "A1/D0": "21/36"
+        }
+      },
+      {
+        "attacker_dice": 1,
+        "defender_dice": 2,
+        "outcomes": {
+          "A0/D1": "55/216",
+          "A1/D0": "161/216"
+        }
+      },
+      {
+        "attacker_dice": 2,
+        "defender_dice": 1,
+        "outcomes": {
+          "A0/D1": "125/216",
+          "A1/D0": "91/216"
+        }
+      },
+      {
+        "attacker_dice": 2,
+        "defender_dice": 2,
+        "outcomes": {
+          "A0/D2": "295/1296",
+          "A1/D1": "420/1296",
+          "A2/D0": "581/1296"
+        }
+      },
+      {
+        "attacker_dice": 3,
+        "defender_dice": 1,
+        "outcomes": {
+          "A0/D1": "855/1296",
+          "A1/D0": "441/1296"
+        }
+      },
+      {
+        "attacker_dice": 3,
+        "defender_dice": 2,
+        "outcomes": {
+          "A0/D2": "2890/7776",
+          "A1/D1": "2611/7776",
+          "A2/D0": "2275/7776"
+        }
+      }
+    ],
+    "source": "osborne_2003"
+  },
+  "fortify": {
+    "moves": 1,
+    "desc": "Beliebig viele Einheiten aus einem eigenen Gebiet in ein anderes eigenes Gebiet, das über eine durchgehende Kette eigener Gebiete verbunden ist.",
+    "constraints": [
+      "Nicht durch fremde Gebiete",
+      "Alle bewegten Einheiten kommen im selben Zielgebiet an",
+      "Mindestens 1 Einheit bleibt im Ausgangsgebiet"
+    ],
+    "allowed_without_attack": true,
+    "source": "hasbro_b7404_de"
+  },
+  "variants": {
+    "mission": {
+      "name": "Auftrags-RISIKO",
+      "players": "3–5",
+      "goal": "Wer zuerst seine geheime Mission erfüllt und die Karte vorzeigt, gewinnt.",
+      "setup": [
+        "Ein Spieler wird 'General'",
+        "Missionskarten für nicht vertretene Armeefarben entfernen",
+        "Jeder erhält verdeckt 1 Missionskarte; Rest ungesehen zurück in die Box"
+      ],
+      "destroy_army_rule": "Mission 'Vernichten Sie die Armee X': Ist man selbst X, gilt: 24 Gebiete eigener Wahl erobern.",
+      "assisted_win": "Vernichtet ein anderer Spieler die Ziel-Armee, ist die Mission trotzdem erfüllt.",
+      "mission_cards_b7404": {
+        "count": 12,
+        "verified_texts": [
+          "Vernichten Sie die ORANGE Armee. Wenn Sie selbst diese Armee sind, heißt Ihr Ziel: Erobern Sie 24 GEBIETE Ihrer Wahl."
+        ],
+        "verified": false,
+        "note": "Die vollständige Liste der 12 Karten steht nicht in der Anleitung. Plausibel (nicht belegt): 5 'Vernichte Farbe X' + 7 aus der klassischen Liste unten."
+      },
+      "mission_cards_classic_reference": {
+        "source": "kent_faq",
+        "edition": "ältere Ausgaben (14 Karten bei 6 Farben)",
+        "cards": [
+          "Vernichte Armee <Farbe> (je Farbe eine Karte)",
+          "Erobere Asien und Südamerika",
+          "Erobere Asien und Afrika",
+          "Erobere Nordamerika und Afrika",
+          "Erobere Nordamerika und Australien",
+          "Erobere Europa, Südamerika und einen dritten Kontinent nach Wahl",
+          "Erobere Europa, Australien und einen dritten Kontinent nach Wahl",
+          "Besetze 18 Gebiete mit je mindestens 2 Einheiten",
+          "Besetze 24 Gebiete"
+        ]
+      },
+      "source": "hasbro_b7404_de"
+    },
+    "classic": {
+      "name": "Klassisches RISIKO",
+      "players": "3–5",
+      "goal": "Alle 42 Gebiete besetzen (alle Gegner ausschalten).",
+      "source": "hasbro_b7404_de"
+    },
+    "duel": {
+      "name": "RISIKO-Duell",
+      "players": 2,
+      "goal": "Alle Gebiete des Gegenspielers erobern (neutrale Gebiete nicht nötig).",
+      "setup": [
+        "Je Spieler eine Farbe + eine dritte Farbe als neutrale Armee; je 40 Infanterie",
+        "Missionskarten und Joker entfernen; 42 Gebietskarten in 3 Stapel à 14 (Spieler A, Spieler B, Neutral)",
+        "1 Infanterie auf jedes der 14 Gebiete jedes Stapels",
+        "Abwechselnd: je 2 eigene Einheiten auf 1 oder 2 eigene Gebiete, plus 1 neutrale Einheit auf ein neutrales Gebiet nach Wahl – bis alle Starteinheiten gesetzt sind",
+        "Gebietskarten + Joker mischen → Zugstapel; weiter nach klassischen Regeln"
+      ],
+      "neutral": {
+        "defended_by": "der jeweils nicht angreifende Spieler würfelt",
+        "can_attack": false,
+        "receives_reinforcements": false,
+        "can_move": false
+      },
+      "source": "hasbro_b7404_de"
+    },
+    "turbo": {
+      "name": "Turbo-RISIKO",
+      "players": "3–5",
+      "goal": "Alle gegnerischen Hauptquartiere erobern und das eigene halten.",
+      "setup": [
+        "Aufbau wie klassisch",
+        "Jeder wählt geheim ein eigenes Gebiet als Hauptquartier und legt dessen Gebietskarte verdeckt vor sich",
+        "Alle decken gleichzeitig auf"
+      ],
+      "rules": [
+        "Erobertes gegnerisches HQ: dessen Karte offen vor sich legen",
+        "Eigenes HQ verloren: Karte an Eroberer abgeben, man scheidet NICHT aus",
+        "HQ-Karten dürfen nicht eingetauscht werden"
+      ],
+      "shorter_goal": {
+        "4": "2 gegnerische HQ + eigenes",
+        "5": "3 gegnerische HQ + eigenes"
+      },
+      "source": "hasbro_b7404_de"
+    }
+  },
+  "edition_differences": [
+    {
+      "topic": "Verteidigungswürfel",
+      "b7404": "max. 2",
+      "other": "1999 (de): 2 Würfel erst ab 3 Einheiten im Gebiet; ältere Ausgaben/RisiKo! (IT): bis 3",
+      "source": [
+        "hasbro_1999_de",
+        "wikipedia_de"
+      ]
+    },
+    {
+      "topic": "Kartentausch-Werte",
+      "b7404": "4,6,8,10,12,15,+5 (global steigend)",
+      "other": "Ältere/Deluxe: feste Werte nach Symbol (z. B. 4/6/8/10)",
+      "source": [
+        "wikipedia_de",
+        "hasbro_2004_de"
+      ]
+    },
+    {
+      "topic": "Missionskarten",
+      "b7404": "12 Karten, 5 Farben",
+      "other": "14 Karten bei 6 Farben (1999); 28 Karten im 2004er Kommandobuch mit 4 Missionen pro Spieler",
+      "source": [
+        "hasbro_1999_de",
+        "hasbro_2004_de",
+        "kent_faq"
+      ]
+    },
+    {
+      "topic": "Spielerzahl",
+      "b7404": "2–5",
+      "other": "1999: 2–6",
+      "source": [
+        "hasbro_b7404_de",
+        "hasbro_1999_de"
+      ]
+    },
+    {
+      "topic": "Begriffe",
+      "b7404": "Erobern/Angreifer/Verteidiger",
+      "other": "Deutsche Ausgaben 1999/2004: Befreien/Befreier/Besatzer",
+      "source": [
+        "hasbro_1999_de",
+        "hasbro_2004_de"
+      ]
+    }
+  ]
+}
