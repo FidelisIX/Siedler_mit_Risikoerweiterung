@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archipel Statistik</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>Archipel · Statistik &amp; Rekorde</strong>
+    <a href="/" class="link">Zum Spiel</a>
+  </header>
+  <main class="stats-page">
+    <div class="panel filters">
+      <label>Variante
+        <select id="f-variant">
+          <option value="">Alle</option>
+          <option value="klassisch">Klassisch</option>
+          <option value="eroberung">Eroberung</option>
+        </select>
+      </label>
+      <label>Spieler
+        <select id="f-player"><option value="">Alle</option></select>
+      </label>
+      <p id="summary" class="muted small-text"></p>
+    </div>
+    <p id="storage" class="storage-note hidden"></p>
+
+    <section class="panel">
+      <h3>Rekorde</h3>
+      <div id="records" class="records"></div>
+    </section>
+
+    <section class="panel">
+      <h3>Spieler</h3>
+      <div class="table-wrap">
+        <table id="players-table">
+          <thead>
+            <tr>
+              <th>Spieler</th><th>Partien</th><th>Siege</th><th>Quote</th><th>Ø Punkte</th><th>Beste</th>
+              <th>Gebaut</th><th>Erobert</th><th>Verloren</th><th>Angriffe ✓</th><th>Tausch</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Karten</h3>
+      <div class="table-wrap">
+        <table id="maps-table">
+          <thead><tr><th>Karte</th><th>Partien</th><th>Ø Punkte des Siegers</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="stats-page.js"></script>
+</body>
+</html>

@@ -16,7 +16,10 @@
       <div class="divider">oder</div>
       <label>Raum-Code <input id="code" maxlength="5" class="code-input"></label>
       <button id="join" class="secondary">Raum beitreten</button>
-      <a href="editor.html" class="link">Karteneditor</a>
+      <div class="row">
+        <a href="editor.html" class="link">Karteneditor</a>
+        <a href="stats.html" class="link">📊 Statistik &amp; Rekorde</a>
+      </div>
       <details class="rules">
         <summary>Spielregeln</summary>
         <ul>
@@ -135,7 +138,16 @@
       <div class="card narrow">
         <h2>Spielende</h2>
         <ol id="results-list" class="results"></ol>
-        <button id="back-home">Zurück zum Start</button>
+        <button id="rematch">🔁 Nochmal spielen</button>
+        <p id="rematch-info" class="muted small-text"></p>
+        <div id="host-actions" class="row hidden">
+          <button id="restart-now" class="small secondary">Sofort neu starten</button>
+          <button id="to-lobby" class="small secondary">Zurück in die Lobby</button>
+        </div>
+        <div class="row">
+          <a href="stats.html" target="_blank" class="link">📊 Statistik &amp; Rekorde</a>
+          <button id="results-leave" class="small secondary">Raum verlassen</button>
+        </div>
       </div>
     </div>
   </section>

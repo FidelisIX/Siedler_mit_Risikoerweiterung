@@ -6,3 +6,11 @@ services:
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /healthz
+    # Räume werden im Arbeitsspeicher gehalten → genau eine Instanz.
+    numInstances: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Token für Statistik und Raumsicherung (siehe README) – im Render-Dashboard eintragen.
+      - key: STATS_GITHUB_TOKEN
+        sync: false

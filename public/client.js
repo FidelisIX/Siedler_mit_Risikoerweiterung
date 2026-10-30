@@ -45,9 +45,10 @@ function showScreen(id) {
 }
 
 let toastTimer = null;
-function toast(message) {
+function toast(message, kind = 'error') {
   const el = $('toast');
   el.textContent = message;
+  el.classList.toggle('info', kind === 'info');
   el.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
@@ -98,16 +99,47 @@ $('create').onclick = () => enter('createRoom');
 $('join').onclick = () => enter('joinRoom', { code: $('code').value });
 
 // Nach Verbindungsabbruch automatisch wieder in den letzten Raum.
+// Nach einem Server-Neustart kann das bis zu 15 s dauern (Raum wird aus der Sicherung geholt).
 socket.on('connect', () => {
-  const code = recall('archipel-room') || urlCode;
-  if (!code || !recall('archipel-room')) return;
+  const code = recall('archipel-room');
+  if (!code) return;
   socket.emit('joinRoom', { code, token, name: recall('archipel-name') || '' }, (res) => {
     if (res.error) {
       remember('archipel-room', null);
+      state = null;
       showScreen('home');
+      $('home-error').textContent = res.error === 'Raum nicht gefunden.'
+        ? 'Der Raum existiert nicht mehr (z. B. nach einem Server-Neustart). Erstellt einfach einen neuen.'
+        : res.error;
     }
   });
 });
+
+socket.on('serverInfo', ({ message }) => toast(message, 'info'));
+
+// Vom Gastgeber entfernt oder in einem anderen Tab geöffnet.
+socket.on('kicked', ({ reason, message }) => {
+  // Beim zweiten Tab gehört die Sitzung jetzt dem anderen Tab – dort nichts zurücksetzen.
+  if (reason !== 'tab') {
+    remember('archipel-room', null);
+    history.replaceState(null, '', '/');
+  }
+  state = null;
+  showScreen('home');
+  $('home-error').textContent = message;
+});
+
+function kickButton(player) {
+  if (state.hostId !== state.you || player.id === state.you || player.removed) return null;
+  const btn = el('button', { class: 'kick', title: `${player.name} entfernen`, 'aria-label': `${player.name} entfernen` }, '✕');
+  btn.onclick = () => {
+    if (!confirm(`${player.name} aus dem Raum entfernen?`)) return;
+    socket.emit('kick', { playerId: player.id }, (res) => {
+      if (res && res.error) toast(res.error);
+    });
+  };
+  return btn;
+}
 
 // ---------- Lobby ----------
 
@@ -146,7 +178,10 @@ function leave() {
   showScreen('home');
 }
 $('leave').onclick = leave;
-$('back-home').onclick = leave;
+$('results-leave').onclick = leave;
+$('rematch').onclick = () => act('voteRematch', { vote: !state.rematchVotes.includes(state.you) });
+$('restart-now').onclick = () => act('start');
+$('to-lobby').onclick = () => act('backToLobby');
 
 function renderLobby() {
   $('lobby-code').textContent = state.code;
@@ -155,8 +190,10 @@ function renderLobby() {
     const li = el('li');
     const dot = el('span', { class: 'dot' });
     dot.style.background = p.color;
-    li.append(dot, el('span', {}, p.name + (p.id === state.you ? ' (du)' : '')));
-    if (p.id === state.hostId) li.append(el('span', { class: 'meta' }, 'Gastgeber'));
+    li.append(dot, el('span', {}, p.name + (p.id === state.you ? ' (du)' : '') + (p.connected ? '' : ' – getrennt')));
+    if (p.id === state.hostId) li.append(el('span', { class: 'meta' }, '👑 Gastgeber'));
+    const kick = kickButton(p);
+    if (kick) li.append(kick);
     return li;
   }));
   const isHost = state.hostId === state.you;
@@ -309,8 +346,11 @@ function renderPlayers() {
     const li = el('li', { class: [p.id === state.currentPlayerId ? 'current' : '', p.connected ? '' : 'offline'].join(' ') });
     const dot = el('span', { class: 'dot' });
     dot.style.background = p.color;
-    li.append(dot, el('span', {}, `${p.name}${p.id === state.you ? ' (du)' : ''}${p.connected ? '' : ' – getrennt'}`));
+    const status = p.removed ? ' – entfernt' : p.connected ? '' : ' – getrennt';
+    li.append(dot, el('span', {}, `${p.id === state.hostId ? '👑 ' : ''}${p.name}${p.id === state.you ? ' (du)' : ''}${status}`));
     li.append(el('span', { class: 'meta' }, `${p.points} Pkt · ${p.resourceCount} Rohst.${p.hasMarkt ? ' · ⚖️' : ''}`));
+    const kick = kickButton(p);
+    if (kick) li.append(kick);
     return li;
   }));
 }
@@ -334,7 +374,9 @@ function renderActions() {
   const res = me().resources;
   const hint = $('action-hint');
 
-  if (state.phase === 'setup') {
+  if (state.phase === 'ended' || !current) {
+    hint.textContent = 'Das Spiel ist beendet.';
+  } else if (state.phase === 'setup') {
     hint.textContent = myTurn ? 'Setze eine Start-Siedlung auf ein markiertes Feld.' : `${current.name} setzt eine Start-Siedlung …`;
   } else if (!myTurn) {
     hint.textContent = `${current.name} ist am Zug.`;
@@ -489,9 +531,30 @@ function renderGame() {
 
   const results = $('results');
   results.classList.toggle('hidden', state.phase !== 'ended');
-  if (state.phase === 'ended') {
-    $('results-list').replaceChildren(...state.results.map((r) => el('li', {}, `${r.name}: ${r.points} Punkte (${r.resources} Rohstoffe)`)));
-  }
+  if (state.phase === 'ended') renderResults();
+}
+
+function renderResults() {
+  $('results-list').replaceChildren(...state.results.map((r) => {
+    const built = Object.values(r.stats.built).reduce((sum, n) => sum + n, 0);
+    const details = [`${r.resources} Rohstoffe`, `${built} gebaut`, `${r.stats.trades} Tausch`];
+    if (state.conquest) details.push(`${r.stats.conquered} erobert`, `${r.stats.lost} verloren`);
+    const li = el('li', { class: r.removed ? 'offline' : '' });
+    li.append(el('b', {}, `${r.name}: ${r.points} Punkte`), el('span', { class: 'muted' }, ` (${details.join(' · ')})${r.removed ? ' – entfernt' : ''}`));
+    return li;
+  }));
+
+  const active = state.players.filter((p) => !p.removed);
+  const online = active.filter((p) => p.connected);
+  const voted = state.rematchVotes.includes(state.you);
+  const amRemoved = me().removed;
+  $('rematch').textContent = voted ? '✓ Dabei – Stimme zurückziehen' : '🔁 Nochmal spielen';
+  $('rematch').disabled = amRemoved;
+  $('rematch-info').textContent = `${state.rematchVotes.length} von ${online.length} verbundenen Spielern wollen nochmal spielen.`
+    + ' Sobald alle zustimmen, startet die nächste Partie mit denselben Einstellungen.';
+  const isHost = state.hostId === state.you;
+  $('host-actions').classList.toggle('hidden', !isHost);
+  $('restart-now').disabled = active.length < 2;
 }
 
 function render() {

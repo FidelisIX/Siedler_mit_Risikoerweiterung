@@ -27,6 +27,17 @@ const BANK_RATE = 3;
 const MARKT_RATE = 2;
 const LOG_LIMIT = 60;
 const LAND_PER_PLAYER = 5;
+const HOST_HANDOVER_MS = 15_000; // so lange darf ein getrennter Gastgeber zurückkommen
+const SNAPSHOT_VERSION = 1;
+const REAL_CLOCK = {
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => {
+    const timer = setTimeout(fn, ms);
+    if (timer.unref) timer.unref();
+    return timer;
+  },
+  clearTimeout: (timer) => clearTimeout(timer),
+};
 const MAP_OPTIONS = [
   { kind: 'random', name: 'Zufällige Inselgruppe' },
   { kind: 'kontinent', name: 'Kontinent (ohne Wasser)' },
@@ -75,14 +86,25 @@ function canAfford(resources, cost) {
   return RESOURCES.every((res) => resources[res] >= (cost[res] || 0));
 }
 
+function emptyStats() {
+  return { built: {}, recruited: 0, attacks: 0, attacksWon: 0, defenses: 0, defensesWon: 0, conquered: 0, lost: 0, trades: 0 };
+}
+
 function formatAmounts(amounts) {
   return RESOURCES.filter((res) => amounts[res] > 0).map((res) => `${amounts[res]} ${res}`).join(', ');
 }
 
 class Game {
-  constructor(code, rng = Math.random) {
+  constructor(code, rng = Math.random, { clock = REAL_CLOCK } = {}) {
     this.code = code;
     this.rng = rng;
+    this.clock = clock;
+    this.onChange = () => {}; // Zustand hat sich ohne Spieleraktion geändert (z. B. Host-Übergabe)
+    this.onFinished = () => {}; // Partie bis zum Ende gespielt → Datensatz für die Statistik
+    this.hostTimer = null;
+    this.rematchVotes = new Set();
+    this.startedAt = null;
+    this.recorded = false;
     this.phase = 'lobby';
     this.players = [];
     this.hostId = null;
@@ -116,6 +138,14 @@ class Game {
     const player = this.players.find((p) => p.id === playerId);
     if (!player) throw new GameError('Unbekannter Spieler.');
     return player;
+  }
+
+  activePlayers() {
+    return this.players.filter((p) => !p.removed);
+  }
+
+  requireHost(playerId) {
+    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das.');
   }
 
   currentPlayer() {
@@ -236,7 +266,7 @@ class Game {
     }
     const usedColors = new Set(this.players.map((p) => p.color));
     const color = COLORS.find((c) => !usedColors.has(c));
-    this.players.push({ id: playerId, name, color, resources: emptyResources(), connected: true });
+    this.players.push({ id: playerId, name, color, resources: emptyResources(), connected: true, removed: false, stats: emptyStats() });
     if (!this.hostId) this.hostId = playerId;
     this.addLog(`${name} ist beigetreten.`);
   }
@@ -252,12 +282,69 @@ class Game {
 
   setConnected(playerId, connected) {
     const player = this.players.find((p) => p.id === playerId);
-    if (player) player.connected = connected;
+    if (!player || player.removed) return;
+    player.connected = connected;
+    if (connected) {
+      const host = this.players.find((p) => p.id === this.hostId);
+      if (!host || host.removed) this.hostId = player.id;
+    } else {
+      if (this.hostId === playerId) this.scheduleHostHandover();
+      if (this.phase === 'ended') this.maybeRematch();
+    }
+  }
+
+  // Nicht sofort übergeben: nach einem Neuladen ist der Gastgeber gleich wieder da.
+  scheduleHostHandover() {
+    if (this.hostTimer) this.clock.clearTimeout(this.hostTimer);
+    this.hostTimer = this.clock.setTimeout(() => {
+      this.hostTimer = null;
+      const host = this.players.find((p) => p.id === this.hostId);
+      if (host && host.connected && !host.removed) return;
+      const next = this.activePlayers().find((p) => p.connected);
+      if (!next) return;
+      this.hostId = next.id;
+      this.addLog(`${next.name} ist jetzt Gastgeber.`);
+      this.onChange();
+    }, HOST_HANDOVER_MS);
+  }
+
+  destroy() {
+    if (this.hostTimer) this.clock.clearTimeout(this.hostTimer);
+    this.hostTimer = null;
+  }
+
+  // Gastgeber entfernt einen Spieler. In der Lobby verschwindet er ganz, im Spiel bleiben seine
+  // Gebäude stehen und seine Züge werden übersprungen.
+  kick(playerId, payload) {
+    this.requireHost(playerId);
+    const targetId = payload && payload.playerId;
+    if (targetId === playerId) throw new GameError('Du kannst dich nicht selbst entfernen.');
+    const target = this.players.find((p) => p.id === targetId && !p.removed);
+    if (!target) throw new GameError('Spieler nicht gefunden.');
+    if (this.phase === 'lobby') {
+      this.players.splice(this.players.indexOf(target), 1);
+      this.addLog(`${target.name} wurde vom Gastgeber entfernt.`);
+      return;
+    }
+    const wasCurrent = this.currentPlayer() === target;
+    target.removed = true;
+    target.connected = false;
+    this.rematchVotes.delete(target.id);
+    if (this.trade && (this.trade.from === target.id || this.trade.to === target.id)) this.trade = null;
+    this.addLog(`${target.name} wurde vom Gastgeber entfernt.`);
+    if (wasCurrent && this.phase === 'setup') {
+      this.advanceSetup();
+    } else if (wasCurrent && this.phase === 'main') {
+      this.hasRolled = false;
+      this.resetTurnLimits();
+      this.advanceTurn();
+    }
+    if (this.phase === 'ended') this.maybeRematch();
   }
 
   setRounds(playerId, payload) {
     if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
-    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das ändern.');
+    this.requireHost(playerId);
     const rounds = Number(payload && payload.rounds);
     if (!ROUND_OPTIONS.includes(rounds)) throw new GameError('Ungültige Rundenzahl.');
     this.maxRounds = rounds;
@@ -265,7 +352,7 @@ class Game {
 
   setMap(playerId, payload) {
     if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
-    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das ändern.');
+    this.requireHost(playerId);
     const kind = payload && payload.kind;
     if (kind === 'custom') {
       try {
@@ -285,7 +372,7 @@ class Game {
 
   setVariant(playerId, payload) {
     if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
-    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das ändern.');
+    this.requireHost(playerId);
     const variant = VARIANTS.find((v) => v.id === (payload && payload.variant));
     if (!variant) throw new GameError('Unbekannte Spielvariante.');
     this.variant = variant.id;
@@ -299,10 +386,20 @@ class Game {
     return null;
   }
 
+  // Start aus der Lobby oder – nach Spielende – direkt die nächste Partie (auch ohne alle Stimmen).
   start(playerId) {
-    if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
-    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann starten.');
-    if (this.players.length < MIN_PLAYERS) throw new GameError(`Mindestens ${MIN_PLAYERS} Spieler nötig.`);
+    if (this.phase !== 'lobby' && this.phase !== 'ended') throw new GameError('Das Spiel läuft bereits.');
+    this.requireHost(playerId);
+    this.beginGame();
+  }
+
+  dropRemovedPlayers() {
+    this.players = this.activePlayers();
+  }
+
+  beginGame() {
+    const players = this.activePlayers();
+    if (players.length < MIN_PLAYERS) throw new GameError(`Mindestens ${MIN_PLAYERS} Spieler nötig.`);
 
     const tiles = buildBoard(this.mapChoice, this.players.length, this.rng);
     const needed = this.players.length * LAND_PER_PLAYER;
@@ -312,7 +409,17 @@ class Game {
     for (const t of tiles) t.troops = 0;
     this.tiles = tiles;
     this.tileIndex = new Map(this.tiles.map((t) => [t.id, t]));
-    for (const p of this.players) p.resources = { ...START_RESOURCES };
+    this.dropRemovedPlayers();
+    for (const p of this.players) {
+      p.resources = { ...START_RESOURCES };
+      p.stats = emptyStats();
+    }
+    Object.assign(this, {
+      round: 0, currentIndex: 0, hasRolled: false, lastRoll: null, trade: null, lastBattle: null,
+      results: null, recorded: false, startedAt: new Date(this.clock.now()).toISOString(),
+    });
+    this.rematchVotes.clear();
+    this.resetTurnLimits();
     // Schlangenreihenfolge: 1..n, dann n..1 — jeder setzt zwei Start-Siedlungen.
     const order = this.players.map((_, i) => i);
     this.setupQueue = [...order, ...order.slice().reverse()];
@@ -332,14 +439,19 @@ class Game {
     if (this.isConquest()) tile.troops = 1;
     this.addLog(`${player.name} gründet eine Start-Siedlung.`);
     this.setupQueue.shift();
-    if (this.setupQueue.length === 0) {
-      this.phase = 'main';
-      this.round = 1;
-      this.currentIndex = 0;
-      this.hasRolled = false;
-      this.resetTurnLimits();
-      this.addLog(`Runde 1 beginnt. ${this.players[0].name} ist am Zug.`);
-    }
+    this.advanceSetup();
+  }
+
+  // Entfernte Spieler in der Aufbauphase überspringen; danach beginnt Runde 1.
+  advanceSetup() {
+    while (this.setupQueue.length && this.players[this.setupQueue[0]].removed) this.setupQueue.shift();
+    if (this.setupQueue.length) return;
+    this.phase = 'main';
+    this.round = 1;
+    this.currentIndex = this.players.findIndex((p) => !p.removed);
+    this.hasRolled = false;
+    this.resetTurnLimits();
+    this.addLog(`Runde 1 beginnt. ${this.currentPlayer().name} ist am Zug.`);
   }
 
   // ---------- Hauptphase ----------
@@ -388,6 +500,7 @@ class Game {
     if (!canAfford(player.resources, def.cost)) throw new GameError('Nicht genug Rohstoffe.');
     for (const [res, n] of Object.entries(def.cost)) player.resources[res] -= n;
     tile.building = { type, owner: player.id };
+    player.stats.built[type] = (player.stats.built[type] || 0) + 1;
     this.addLog(`${player.name} baut ${def.article} ${def.name}.`);
   }
 
@@ -402,6 +515,7 @@ class Game {
     if (player.resources[give] < rate) throw new GameError(`Du brauchst ${rate} ${give}.`);
     player.resources[give] -= rate;
     player.resources[get] += 1;
+    player.stats.trades++;
     this.addLog(`${player.name} tauscht mit der Bank ${rate} ${give} gegen 1 ${get}.`);
   }
 
@@ -436,6 +550,8 @@ class Game {
       from.resources[res] += trade.want[res] - trade.give[res];
       to.resources[res] += trade.give[res] - trade.want[res];
     }
+    from.stats.trades++;
+    to.stats.trades++;
     this.addLog(`${to.name} nimmt das Angebot von ${from.name} an.`);
   }
 
@@ -450,17 +566,27 @@ class Game {
     this.trade = null;
     this.hasRolled = false;
     this.resetTurnLimits();
-    this.currentIndex++;
-    if (this.currentIndex >= this.players.length) {
-      this.currentIndex = 0;
-      this.round++;
-      if (this.round > this.maxRounds) {
-        this.finish();
-        return;
+    this.addLog(`${player.name} beendet den Zug.`);
+    this.advanceTurn();
+  }
+
+  // Zum nächsten nicht entfernten Spieler; nach dem letzten beginnt eine neue Runde.
+  advanceTurn() {
+    this.trade = null;
+    for (let step = 0; step < this.players.length; step++) {
+      this.currentIndex++;
+      if (this.currentIndex >= this.players.length) {
+        this.currentIndex = 0;
+        this.round++;
+        if (this.round > this.maxRounds) {
+          this.finish();
+          return;
+        }
+        this.addLog(`Runde ${this.round} von ${this.maxRounds} beginnt.`);
       }
-      this.addLog(`Runde ${this.round} von ${this.maxRounds} beginnt.`);
+      if (!this.players[this.currentIndex].removed) break;
     }
-    this.addLog(`${player.name} beendet den Zug. ${this.currentPlayer().name} ist am Zug.`);
+    this.addLog(`${this.currentPlayer().name} ist am Zug.`);
   }
 
   // ---------- Eroberungs-Variante ----------
@@ -552,6 +678,7 @@ class Game {
     if (!canAfford(player.resources, CONQUEST.recruitCost)) throw new GameError('Nicht genug Rohstoffe.');
     for (const [res, n] of Object.entries(CONQUEST.recruitCost)) player.resources[res] -= n;
     tile.troops++;
+    player.stats.recruited++;
     this.addLog(`${player.name} rekrutiert eine Truppe.`);
   }
 
@@ -606,6 +733,16 @@ class Game {
       attackerLosses = count;
       defenderLosses = Math.min(defending, Math.ceil(count / 2));
       target.troops -= defenderLosses;
+    }
+
+    player.stats.attacks++;
+    defender.stats.defenses++;
+    if (attackerWins) {
+      player.stats.attacksWon++;
+      player.stats.conquered++;
+      defender.stats.lost++;
+    } else {
+      defender.stats.defensesWon++;
     }
 
     const buildingName = BUILDINGS[target.building.type].name;
@@ -663,10 +800,93 @@ class Game {
   finish() {
     this.phase = 'ended';
     this.trade = null;
+    this.rematchVotes.clear();
     this.results = this.players
-      .map((p) => ({ id: p.id, name: p.name, color: p.color, points: this.points(p.id), resources: total(p.resources) }))
-      .sort((a, b) => b.points - a.points || b.resources - a.resources);
+      .map((p) => ({
+        id: p.id, name: p.name, color: p.color, removed: p.removed,
+        points: this.points(p.id), resources: total(p.resources), stats: p.stats,
+      }))
+      .sort((a, b) => a.removed - b.removed || b.points - a.points || b.resources - a.resources);
     this.addLog(`Spielende! ${this.results[0].name} gewinnt mit ${this.results[0].points} Punkten.`);
+    if (!this.recorded) {
+      this.recorded = true;
+      this.onFinished(this.gameRecord());
+    }
+  }
+
+  // Datensatz einer beendeten Partie für die Statistik.
+  gameRecord() {
+    return {
+      room: this.code,
+      startedAt: this.startedAt,
+      endedAt: new Date(this.clock.now()).toISOString(),
+      variant: this.variant,
+      map: { kind: this.mapChoice.kind, name: this.mapChoice.name },
+      rounds: this.maxRounds,
+      players: this.results.map((r) => ({
+        name: r.name, points: r.points, resources: r.resources, removed: r.removed, stats: r.stats,
+      })),
+    };
+  }
+
+  // ---------- Nach dem Spiel ----------
+
+  // „Nochmal spielen“: Jeder stimmt ab (erneut klicken nimmt die Stimme zurück). Haben alle
+  // verbundenen Spieler zugestimmt, startet die nächste Partie mit denselben Einstellungen.
+  voteRematch(playerId, payload) {
+    if (this.phase !== 'ended') throw new GameError('Gerade nicht möglich.');
+    const player = this.getPlayer(playerId);
+    if (player.removed) throw new GameError('Du wurdest aus dem Spiel entfernt.');
+    if (payload && payload.vote === false) this.rematchVotes.delete(playerId);
+    else this.rematchVotes.add(playerId);
+    this.maybeRematch();
+  }
+
+  maybeRematch() {
+    if (this.phase !== 'ended' || this.rematchVotes.size === 0) return;
+    const online = this.activePlayers().filter((p) => p.connected);
+    if (online.length > 0 && online.every((p) => this.rematchVotes.has(p.id)) && this.activePlayers().length >= MIN_PLAYERS) {
+      this.addLog('Alle sind dabei – neue Partie!');
+      this.beginGame();
+    }
+  }
+
+  backToLobby(playerId) {
+    if (this.phase !== 'ended') throw new GameError('Erst nach Spielende möglich.');
+    this.requireHost(playerId);
+    this.dropRemovedPlayers();
+    Object.assign(this, {
+      phase: 'lobby', tiles: [], tileIndex: new Map(), round: 0, results: null, lastRoll: null, lastBattle: null,
+    });
+    this.rematchVotes.clear();
+    this.addLog('Zurück in der Lobby.');
+  }
+
+  // ---------- Sicherung über Neustarts ----------
+
+  snapshot() {
+    const fields = [
+      'code', 'phase', 'players', 'hostId', 'tiles', 'round', 'maxRounds', 'mapChoice', 'variant',
+      'attacksLeft', 'movesLeft', 'lastBattle', 'currentIndex', 'setupQueue', 'hasRolled', 'lastRoll',
+      'trade', 'nextTradeId', 'log', 'results', 'startedAt', 'recorded',
+    ];
+    const snap = Object.fromEntries(fields.map((f) => [f, this[f]]));
+    return JSON.parse(JSON.stringify({
+      ...snap, version: SNAPSHOT_VERSION, savedAt: new Date(this.clock.now()).toISOString(), rematchVotes: [...this.rematchVotes],
+    }));
+  }
+
+  static restore(snap, rng = Math.random, options = {}) {
+    if (!snap || snap.version !== SNAPSHOT_VERSION) return null;
+    const game = new Game(snap.code, rng, options);
+    const { version, savedAt, rematchVotes, ...fields } = snap;
+    Object.assign(game, fields);
+    game.rematchVotes = new Set(rematchVotes || []);
+    game.tileIndex = new Map(game.tiles.map((t) => [t.id, t]));
+    // Nach dem Neustart ist zunächst niemand verbunden; kommt der Gastgeber nicht zurück, wird übergeben.
+    for (const p of game.players) p.connected = false;
+    game.scheduleHostHandover();
+    return game;
   }
 
   // ---------- Zustand für Clients ----------
@@ -699,11 +919,13 @@ class Game {
       results: this.results,
       buildings: this.availableBuildings(),
       rates: { bank: BANK_RATE, markt: MARKT_RATE },
+      rematchVotes: [...this.rematchVotes],
       players: this.players.map((p) => ({
         id: p.id,
         name: p.name,
         color: p.color,
         connected: p.connected,
+        removed: p.removed,
         points: this.points(p.id),
         resourceCount: total(p.resources),
         resources: p.id === viewerId ? p.resources : null,
@@ -715,4 +937,4 @@ class Game {
   }
 }
 
-module.exports = { Game, GameError, BUILDINGS, RESOURCES, START_RESOURCES, TERRAIN_DIE, CONQUEST };
+module.exports = { Game, GameError, BUILDINGS, RESOURCES, START_RESOURCES, TERRAIN_DIE, CONQUEST, HOST_HANDOVER_MS };

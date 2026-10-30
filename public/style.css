@@ -154,3 +154,20 @@ button.active { outline: 3px solid #fab005; }
 @media (max-width: 860px) {
   .editor-board { height: 60vh; }
 }
+
+/* Räume */
+.kick { margin-left: 4px; padding: 2px 7px; font-size: .75rem; background: transparent; color: var(--error); border: 1px solid var(--border); }
+.toast.info { background: #1c7ed6; }
+#results .row { justify-content: space-between; flex-wrap: wrap; }
+
+/* Statistik */
+.stats-page { max-width: 1100px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.storage-note { background: #fff3bf; border-radius: 8px; padding: 10px 12px; margin: 0; }
+.records { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.record { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.record b { font-size: 1.15rem; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { font-weight: 600; color: var(--muted); }

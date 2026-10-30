@@ -40,6 +40,18 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
 - **Verbindungsabbruch:** Neu laden verbindet wieder mit dem Raum. Ist der aktive Spieler getrennt,
   können Mitspieler seinen Zug überspringen.
 
+## Räume
+
+- **Spieler entfernen:** Der Gastgeber (👑) entfernt Spieler über das ✕ in der Spielerliste. In der Lobby
+  verschwinden sie ganz; im laufenden Spiel bleiben ihre Gebäude stehen und ihre Züge werden übersprungen.
+- **Host-Übergabe:** Ist der Gastgeber 15 s lang nicht verbunden, wird der nächste verbundene Spieler Gastgeber.
+  Ein kurzes Neuladen der Seite löst keine Übergabe aus.
+- **Nochmal spielen:** Am Spielende kann jeder zustimmen (erneut klicken nimmt die Stimme zurück). Haben alle
+  verbundenen Spieler zugestimmt, startet die nächste Partie mit denselben Spielern und Einstellungen.
+  Der Gastgeber kann auch sofort neu starten oder zurück in die Lobby gehen, um etwas zu ändern.
+- **Zweiter Tab:** Pro Spieler ist nur eine Verbindung aktiv. Wer das Spiel in einem weiteren Tab öffnet,
+  spielt dort weiter; der alte Tab zeigt „In einem anderen Tab geöffnet“.
+
 ## Spielvariante „Eroberung“ (Truppen & Kämpfe)
 
 Der Gastgeber wählt in der Lobby die Variante **Klassisch** oder **Eroberung**. In der Eroberung gilt zusätzlich:
@@ -95,15 +107,57 @@ Das Repo enthält eine `render.yaml` (Blueprint).
 
 Alternativ **New → Web Service** mit denselben Befehlen. Render setzt `PORT` automatisch.
 
-**Hinweis:** Spielstände liegen nur im Arbeitsspeicher. Bei einem Neustart oder Redeploy – und beim
-Free-Plan auch beim Einschlafen nach Inaktivität – gehen laufende Spiele verloren.
+Wichtig zu wissen:
+
+- **Genau eine Instanz** (`numInstances: 1`). Mit mehreren Instanzen würden Spieler desselben Raums auf
+  verschiedenen Servern landen.
+- **Kostenloser Plan:** Der Dienst schläft nach einer Weile ohne Aufrufe ein; der erste Aufruf danach dauert länger.
+- **Ohne `STATS_GITHUB_TOKEN`** liegen Räume und Statistik nur im Arbeitsspeicher und gehen bei jedem Neustart verloren.
+
+## Statistik & Raumsicherung
+
+Wie bei Ortsraten: Über **„📊 Statistik & Rekorde“** (Startseite und Spielende) gibt es Rekorde (beste Partie,
+meiste Siege/Partien, meiste Gebäude bzw. Eroberungen in einer Partie, knappster Sieg), eine Spielertabelle und
+eine Kartenübersicht, filterbar nach Variante und Spieler. Spieler werden über ihren Namen erkannt
+(Groß-/Kleinschreibung egal). Gespeichert werden nur Partien, die bis zum Ende gespielt wurden.
+
+### Speicherung im GitHub-Branch `statistik`
+
+Nach jeder Partie schreibt der Server eine Zeile in `spiele/JJJJ-MM.jsonl` im Branch `statistik` dieses Repos
+und liest beim Start alle Partien wieder ein. Der Branch darf nicht der Deploy-Branch sein, sonst würde jede
+Partie einen Neustart auslösen; der Server verweigert das.
+
+Einrichtung:
+
+1. Auf GitHub unter **Settings → Developer settings → Personal access tokens → Fine-grained tokens** einen Token
+   erstellen: nur für dieses Repository, Berechtigung **Contents: Read and write**, sonst nichts.
+2. Auf Render im Service unter **Environment** die Variable `STATS_GITHUB_TOKEN` mit dem Token anlegen.
+   Render startet den Dienst danach neu.
+
+### Laufende Spiele überstehen Deploys
+
+Mit gesetztem Token sichert der Server beim Herunterfahren (SIGTERM, z. B. bei einem Deploy auf Render) alle
+aktiven Räume in `raeume/<CODE>.json` im Branch `statistik`. Die Browser verbinden sich automatisch neu, der neue
+Server stellt die Räume wieder her und die Partie läuft an derselben Stelle weiter. Sicherungen älter als
+10 Minuten werden verworfen; Abstürze sind nicht abgedeckt. Sitzungs-Tokens werden nur als SHA-256-Hash gesichert.
+
+| Umgebungsvariable    | Standard                                  | Bedeutung                                         |
+|----------------------|-------------------------------------------|---------------------------------------------------|
+| `PORT`               | `3000`                                    | HTTP-Port                                         |
+| `STATS_GITHUB_TOKEN` | –                                         | Token für Statistik und Raumsicherung             |
+| `STATS_REPO`         | `FidelisIX/siedler_mit_risikoerweiterung` | Repo für die Daten                                |
+| `STATS_BRANCH`       | `statistik`                               | Datenbranch; darf nicht `main` sein               |
+| `STATS_FILE`         | –                                         | Alternativ: lokale Datei (Entwicklung) ohne Token |
 
 ## Struktur
 
 ```
 server/map.js     Karten: Inselgenerator, Vorlagen, Regionen, Prüfung eigener Karten
 server/game.js    Spiellogik und Regeln
-server/index.js   HTTP- und Socket.IO-Server, Räume
-public/           Browser-Client (index.html, client.js), Karteneditor (editor.html, editor.js), hex.js
-test/             Tests der Spiellogik (node:test)
+server/index.js   HTTP- und Socket.IO-Server, Räume, Wiederherstellung nach Neustart
+server/store.js   Speicherung von Partien und Raumsicherungen (GitHub-Branch, Datei oder Arbeitsspeicher)
+server/stats.js   Auswertung: Rekorde, Spielertabelle, Karten
+public/           Browser-Client (index.html, client.js), Karteneditor (editor.html, editor.js),
+                  Statistik (stats.html, stats-page.js), hex.js
+test/             node:test – Spiellogik, Statistik und Socket-Integrationstest
 ```

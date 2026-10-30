@@ -447,3 +447,117 @@ test('Eroberung: Angriffe über eigene Schiffe', () => {
   game.getTile('1,0').building = { type: 'schiff', owner: 'p0' };
   assert.equal(game.canAttack(game.getTile('0,0'), game.getTile('2,0'), 'p0'), true);
 });
+
+// ---------- Räume: Entfernen, Host-Übergabe, Nochmal spielen, Sicherung ----------
+
+function fakeClock() {
+  let now = Date.parse('2026-10-30T12:00:00Z');
+  const timers = [];
+  return {
+    now: () => now,
+    setTimeout: (fn, ms) => { const t = { fn, at: now + ms }; timers.push(t); return t; },
+    clearTimeout: (t) => { const i = timers.indexOf(t); if (i >= 0) timers.splice(i, 1); },
+    advance(ms) {
+      now += ms;
+      for (const t of timers.filter((x) => x.at <= now)) { timers.splice(timers.indexOf(t), 1); t.fn(); }
+    },
+  };
+}
+
+function playToEnd(game) {
+  while (game.phase === 'main') {
+    const current = game.currentPlayer();
+    game.roll(current.id);
+    game.endTurn(current.id);
+  }
+}
+
+test('Räume: Gastgeber entfernt Spieler in Lobby und Spiel', () => {
+  const game = newGame(3);
+  assert.throws(() => game.kick('p1', { playerId: 'p2' }), /Gastgeber/);
+  assert.throws(() => game.kick('p0', { playerId: 'p0' }), /selbst/);
+  game.kick('p0', { playerId: 'p2' });
+  assert.equal(game.players.length, 2);
+
+  game.addPlayer('p3', 'Dritter');
+  game.start('p0');
+  finishSetup(game);
+  // p1 ist als Nächstes dran – wird entfernt, während p0 am Zug ist
+  game.kick('p0', { playerId: 'p1' });
+  game.roll('p0');
+  game.endTurn('p0');
+  assert.equal(game.currentPlayer().id, 'p3', 'entfernte Spieler werden übersprungen');
+  // Aktueller Spieler wird entfernt → Zug geht sofort weiter
+  game.kick('p0', { playerId: 'p3' });
+  assert.equal(game.currentPlayer().id, 'p0');
+  assert.equal(game.round, 2);
+  playToEnd(game);
+  assert.equal(game.results.at(-1).removed, true);
+});
+
+test('Räume: Host-Übergabe erst nach Wartezeit', () => {
+  const clock = fakeClock();
+  const game = new Game('TEST', seeded(1), { clock });
+  let changes = 0;
+  game.onChange = () => changes++;
+  game.addPlayer('p0', 'A');
+  game.addPlayer('p1', 'B');
+  game.setConnected('p0', false);
+  clock.advance(5_000);
+  game.setConnected('p0', true); // nur neu geladen
+  clock.advance(20_000);
+  assert.equal(game.hostId, 'p0');
+  game.setConnected('p0', false);
+  clock.advance(16_000);
+  assert.equal(game.hostId, 'p1');
+  assert.equal(changes, 1);
+});
+
+test('Räume: Nochmal spielen per Abstimmung, Host kann direkt starten oder zurück in die Lobby', () => {
+  const game = newGame(3);
+  const records = [];
+  game.onFinished = (r) => records.push(r);
+  game.setRounds('p0', { rounds: 8 });
+  game.start('p0');
+  finishSetup(game);
+  playToEnd(game);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].players.length, 3);
+  assert.equal(records[0].variant, 'klassisch');
+
+  game.voteRematch('p0', { vote: true });
+  game.voteRematch('p1', { vote: true });
+  game.voteRematch('p1', { vote: false });
+  game.setConnected('p2', false); // Getrennte Spieler müssen nicht zustimmen
+  assert.equal(game.phase, 'ended');
+  game.voteRematch('p1', { vote: true });
+  assert.equal(game.phase, 'setup');
+  assert.equal(game.maxRounds, 8);
+  assert.equal(game.recorded, false);
+
+  finishSetup(game);
+  playToEnd(game);
+  assert.equal(records.length, 2);
+  game.backToLobby('p0');
+  assert.equal(game.phase, 'lobby');
+  game.start('p0');
+  assert.equal(game.phase, 'setup');
+});
+
+test('Räume: Sicherung und Wiederherstellung mitten im Spiel', () => {
+  const game = newGame(2, seeded(4), { kind: 'random' });
+  game.setVariant('p0', { variant: 'eroberung' });
+  game.start('p0');
+  finishSetup(game);
+  game.roll('p0');
+  const snap = JSON.parse(JSON.stringify(game.snapshot()));
+  const restored = Game.restore(snap, seeded(4), { clock: fakeClock() });
+  assert.equal(restored.phase, 'main');
+  assert.equal(restored.hasRolled, true);
+  assert.ok(restored.players.every((p) => !p.connected));
+  assert.deepEqual(restored.publicState('p0').tiles, game.publicState('p0').tiles);
+  restored.setConnected('p0', true);
+  restored.endTurn('p0');
+  assert.equal(restored.currentPlayer().id, 'p1');
+  assert.equal(Game.restore({ ...snap, version: 99 }), null);
+});
