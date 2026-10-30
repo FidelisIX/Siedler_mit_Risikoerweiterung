@@ -1,0 +1,163 @@
+{
+  "meta": {
+    "title": "CATAN – Seefahrer (Erweiterung, 3–4 Spieler) – Allgemeine Regeln",
+    "purpose": "Maschinenlesbare Ergänzung zu catan_basisspiel_regeln.json. Regel-IDs identisch mit catan_seefahrer_regeln.md.",
+    "extends": "catan_basisspiel_regeln.json",
+    "scope": "Nur allgemeine Regeln. Szenarien, deren Spielpläne, Siegpunktziele und Sonderregeln sowie das freie Spiel sind NICHT enthalten.",
+    "rules_edition": "2025 (DE © 1997, 2025 KOSMOS; EN v6.250401)",
+    "language": "de",
+    "retrieved": "2026-10-30",
+    "sources": {
+      "S1": {
+        "title": "CATAN – Seafarers Rulebook (v6.250401)",
+        "publisher": "CATAN GmbH / CATAN Studio",
+        "year": 2025,
+        "official": true,
+        "url": "https://www.catan.com/sites/default/files/2025-03/CN3083%20CATAN%E2%80%93Seafarers%20Rulebook%202025%20secured%20reduced.pdf"
+      },
+      "S2": {
+        "title": "CATAN – Seefahrer, Spielanleitung (Art.-Nr. 684679)",
+        "publisher": "KOSMOS",
+        "year": 2025,
+        "official": true,
+        "url": "https://cms.kosmos.de/game-instructions/400205684679_CAT_NE_SEE34_Manual_DE_web.pdf"
+      },
+      "S3": {
+        "title": "Catan: Seafarers – Game Rules & Scenarios (ältere Ausgabe, ergänzend)",
+        "publisher": "CATAN Studio",
+        "year": 2021,
+        "official": true,
+        "url": "https://www.catan.com/sites/default/files/2021-06/catan-seafarers_2021_rule_book_201201.pdf"
+      }
+    }
+  },
+
+  "base_rules_apply": { "id": "S-BASE-01", "value": true, "sources": ["S1", "S2"] },
+
+  "modifies_base_rules": {
+    "R-GOAL-01": "S-GOAL-01",
+    "R-END-01": "S-END-01",
+    "R-SETUP-06": "S-SETUP-03",
+    "R-SETUP-11": "S-SETUP-04",
+    "R-SETUP-12": "S-SETUP-04",
+    "R-BUILD-01": "S-SHIP-02",
+    "R-BUILD-10": "S-SHIP-07",
+    "R-SEVEN-03": "S-PIRATE-01",
+    "R-PROD-02": "S-GOLD-02",
+    "R-ROAD-01": "S-ROUTE-01",
+    "R-ROAD-02": "S-ROUTE-01",
+    "R-ROAD-03": "S-ROUTE-01",
+    "R-ROAD-04": "S-ROUTE-01",
+    "development_cards.knight": "S-KNIGHT-01",
+    "development_cards.road_building": "S-DEV-01"
+  },
+
+  "terrain_additions": {
+    "sea":        { "name_de": "Meer",      "produces": null, "number_token": false, "land": false },
+    "gold_field": { "name_de": "Goldfluss", "produces": "resource_of_choice", "number_token": true, "land": true }
+  },
+
+  "components_added": {
+    "frame_pieces": 6,
+    "base_frame_side": "back_without_ports",
+    "hexes": { "sea": 19, "hills": 2, "mountains": 2, "gold_field": 2, "desert": 2, "fields": 1, "forest": 1, "pasture": 1, "total": 30 },
+    "number_tokens": { "count": 10, "distribution": null, "note": "SGAP-03" },
+    "port_tokens": { "generic_3_1": 5, "special_2_1": { "wood": 1, "brick": 1, "wool": 1, "grain": 1, "ore": 1 }, "total": 10 },
+    "ships_per_player": 15,
+    "pirate": 1,
+    "scenario_only": ["vp_tokens", "pirate_lairs", "wonders", "great_wall_markers", "great_bridge_markers", "cloth_tokens"],
+    "sources": ["S1", "S2", "S3"]
+  },
+
+  "victory": {
+    "id": "S-GOAL-01",
+    "target_vp": "scenario_defined",
+    "check": "only_active_player_during_own_turn",
+    "ends_immediately": true,
+    "end_rule_id": "S-END-01",
+    "sources": ["S1", "S2"]
+  },
+
+  "setup": [
+    { "id": "S-SETUP-01", "text": "Rahmen, Land-/Meerfelder, Zahlenchips und Häfen gemäß Szenario; Basis-Rahmen mit hafenloser Rückseite.", "sources": ["S1", "S2"] },
+    { "id": "S-SETUP-02", "text": "Häfen fest oder zufällig (verdeckt mischen, auf zufällige vorgesehene Plätze, dann aufdecken).", "sources": ["S2"] },
+    { "id": "S-SETUP-03", "text": "Räuber und Seeräuber starten auf vom Szenario angegebenen Feldern.", "sources": ["S2"] },
+    { "id": "S-SETUP-04", "text": "Gründungsphase wie variabler Aufbau; an Küstensiedlung darf statt Straße ein Schiff gesetzt werden.", "starting_link_options": ["road", "ship_if_settlement_on_coast"], "sources": ["S1", "S2"] }
+  ],
+
+  "costs_added": {
+    "ship": { "wood": 1, "wool": 1 },
+    "vp": 0,
+    "sources": ["S2"],
+    "note": "In S1 nur als Symbol dargestellt."
+  },
+
+  "ships": {
+    "build": [
+      { "id": "S-SHIP-01", "text": "Nur auf Wasserweg (Meer|Meer) oder Küste (Meer|Land).", "allowed_edges": ["sea_edge", "coastal_edge"] },
+      { "id": "S-SHIP-02", "text": "Max. 1 Schiff pro Wasserweg; an der Küste entweder 1 Schiff oder 1 Straße.", "coastal_edge_exclusive": true },
+      { "id": "S-SHIP-03", "text": "Anschluss an eigene Siedlung/Stadt oder eigenes Schiff; Verzweigung erlaubt.", "connect_to": ["own_settlement", "own_city", "own_ship"] },
+      { "id": "S-SHIP-04", "text": "Kein direkter Anschluss Schiff↔Straße; Übergang nur über eigene Siedlung/Stadt.", "road_ship_transition_requires": "own_building_on_vertex" },
+      { "id": "S-SHIP-05", "text": "Nicht über Kreuzung mit fremdem Gebäude hinweg bauen.", "sources": ["S1"] },
+      { "id": "S-SHIP-06", "text": "Kein Bau auf den 6 Kanten des Seeräuber-Meerfelds." },
+      { "id": "S-SHIP-07", "text": "Siedlungsbau auch an Kreuzung, die über eigene Schiffslinie erreicht wird; Abstandsregel gilt." }
+    ],
+    "move": [
+      { "id": "S-MOVE-01", "text": "Max. 1 Schiff pro eigenem Zug versetzen (Aktionsphase).", "max_per_turn": 1 },
+      { "id": "S-MOVE-02", "text": "Nicht im Bauzug versetzen." },
+      { "id": "S-MOVE-03", "text": "Nur Schiff am offenen Ende einer offenen Schiffslinie (ein Ende grenzt nicht an eigenes Schiff/Gebäude).", "movable_if": "one_end_not_adjacent_to_own_ship_or_building" },
+      { "id": "S-MOVE-04", "text": "Geschlossene Linie (verbindet 2 eigene Gebäude) unbeweglich, auch wenn ein Mitspieler darauf baut.", "closed_line_stays_closed_if_interrupted": true },
+      { "id": "S-MOVE-05", "text": "Nicht auf/von Kante des Seeräuber-Meerfelds versetzen." },
+      { "id": "S-MOVE-06", "text": "Neuplatzierung nach normalen Schiffsbauregeln." }
+    ],
+    "sources": ["S1", "S2"]
+  },
+
+  "pirate_and_robber": {
+    "rules": [
+      { "id": "S-PIRATE-01", "text": "Bei 7: Räuber ODER Seeräuber versetzen; genau eine Figur muss bewegt werden. Abwerfen (R-SEVEN-02) unverändert.", "choice": ["robber", "pirate"] },
+      { "id": "S-PIRATE-02", "text": "Seeräuber auf ein anderes Meerfeld oder auf den Rahmen.", "allowed_targets": ["other_sea_hex", "frame"] },
+      { "id": "S-PIRATE-03", "text": "Auf Meerfeld: 1 zufällige Rohstoffkarte von einem Spieler mit Schiff an einer Kante dieses Felds rauben; bei mehreren wählt der aktive Spieler.", "victim": "player_with_ship_on_hex_edge", "card": "random_resource" },
+      { "id": "S-PIRATE-04", "text": "Bau- und Versetzungsverbot an seinen 6 Kanten (S-SHIP-06, S-MOVE-05)." },
+      { "id": "S-ROBBER-01", "text": "Räuber auf beliebiges Landfeld, auch über Meer hinweg, sofern Szenario nichts anderes vorgibt." },
+      { "id": "S-KNIGHT-01", "text": "Ritterkarte: wahlweise Räuber oder Seeräuber versetzen." }
+    ],
+    "sources": ["S1", "S2"]
+  },
+
+  "gold_field": {
+    "rules": [
+      { "id": "S-GOLD-01", "text": "Keine Rohstoffkarte Gold." },
+      { "id": "S-GOLD-02", "text": "Bei Würfelzahl: pro Siedlung 1, pro Stadt 2 Rohstoffe nach Wahl; Stadt darf 2 verschiedene wählen.", "yield": { "settlement": 1, "city": 2 }, "choice_from": ["wood", "brick", "wool", "grain", "ore"], "mixed_allowed": true }
+    ],
+    "robber_blocks": { "value": true, "derived": true },
+    "sources": ["S1", "S2"]
+  },
+
+  "longest_route": {
+    "rules": [
+      { "id": "S-ROUTE-01", "text": "Zählt durchgehende Züge aus Straßen und/oder Schiffen (≥ 5); sonst wie R-ROAD-01…04.", "segments": ["road", "ship"], "min_length": 5 },
+      { "id": "S-ROUTE-02", "text": "Straße und Schiff nur über eigene Siedlung/Stadt verbunden.", "road_ship_join_requires": "own_building_on_vertex" }
+    ],
+    "name_de_2025": "Längste Handelsroute",
+    "sources": ["S1", "S2"]
+  },
+
+  "development_cards": {
+    "rules": [
+      { "id": "S-DEV-01", "text": "Straßenbau: 2 Straßen, 2 Schiffe oder 1 Straße + 1 Schiff kostenlos.", "options": [["road", "road"], ["ship", "ship"], ["road", "ship"]] }
+    ],
+    "knight": "S-KNIGHT-01",
+    "sources": ["S1", "S2"]
+  },
+
+  "end": { "id": "S-END-01", "text": "Spiel endet im Zug, in dem der aktive Spieler die Szenario-Siegpunktzahl erreicht.", "sources": ["S1", "S2"] },
+
+  "gaps_and_assumptions": [
+    { "id": "SGAP-01", "topic": "Startrohstoffe bei zweiter Siedlung am Goldfluss", "status": "nicht allgemein geregelt", "assumption": "1 Rohstoff nach Wahl analog S-GOLD-02" },
+    { "id": "SGAP-02", "topic": "Vorratsmangel bei Gold-Wahl", "status": "nicht geregelt", "assumption": "R-PROD-04 je gewähltem Rohstoff" },
+    { "id": "SGAP-03", "topic": "Verteilung der 10 zusätzlichen Zahlenchips", "status": "nur als Bild", "assumption": "nicht enthalten" },
+    { "id": "SGAP-04", "topic": "Seeräuber auf demselben Feld lassen", "status": "nicht explizit", "assumption": "nicht erlaubt (S1: 'to the frame or to a new sea hex')" },
+    { "id": "SGAP-05", "topic": "Siegpunkt-Chips", "status": "szenarioabhängig", "assumption": "nicht Teil der allgemeinen Regeln" }
+  ]
+}

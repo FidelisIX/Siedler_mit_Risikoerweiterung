@@ -5,6 +5,7 @@
 > [`catan_basisspiel_regeln.json`](catan_basisspiel_regeln.json).
 > Regel-IDs (z. B. `R-SETUP-03`) sind in beiden Dateien identisch.
 > Jede Regel verweist über `[Qx]` auf die Quelle (siehe Abschnitt „Quellen“).
+> Erweiterungen: [`catan_seefahrer_regeln.md`](catan_seefahrer_regeln.md) (Seefahrer, allgemeine Regeln).
 
 ## 0. Konventionen
 
