@@ -206,6 +206,34 @@ Zur Orientierung die Missionen älterer Ausgaben [S7] (14 Karten bei 6 Farben):
 
 **Kurzvariante:** Bei 4 Spielern reichen 2 gegnerische HQ plus das eigene, bei 5 Spielern 3 gegnerische HQ plus das eigene.
 
+### 5.4 Wahlregel „Parker 1975“: drei Verteidigungswürfel
+
+Lässt sich mit jeder der Varianten 5.1–5.3 und dem klassischen Spiel kombinieren. JSON: `variants.defender_three_dice`.
+
+**Änderung gegenüber 4.3:** Der Verteidiger würfelt mit 1, 2 oder 3 Würfeln nach eigener Wahl, höchstens so vielen, wie Einheiten im Gebiet stehen. Alle anderen Regeln bleiben gleich.
+
+**Herkunft**
+
+- Deutsche Schmidt-Ausgabe (vermutlich späte 60er) und Parker-Ausgabe ab 1975 [S9][S10].
+- Ab etwa 1982 nur noch 2 Verteidigungswürfel [S10].
+- Im Ausland z. B. im italienischen *RisiKo!* und im brasilianischen *War!* [S7].
+
+**⚠ Nicht belegt**
+
+- Ab wie vielen Einheiten 3 Würfel erlaubt waren. Die Grenze „höchstens so viele wie Einheiten“ übernimmt nur die heutige Regel.
+- Wer bei Gleichstand gewann. Hier gilt wie heute: der Verteidiger.
+- Die übrigen Regeln der Ausgabe 1975 (Kartentausch, Missionen). Die Wahlregel ändert deshalb nur die Würfelzahl.
+
+**Wahrscheinlichkeiten je Wurf** (exakt berechnet, Gleichstand für den Verteidiger):
+
+| Angreifer | Verteidiger | Verteidiger verliert alles | Teilverluste | Angreifer verliert alles |
+|---|---|---|---|---|
+| 1 | 3 | 225/1296 ≈ 17,4 % | – | 1071/1296 ≈ 82,6 % |
+| 2 | 3 | 979/7776 ≈ 12,6 % | 1:1 1981/7776 ≈ 25,5 % | 4816/7776 ≈ 61,9 % |
+| 3 | 3 | 6420/46656 ≈ 13,8 % | A1/V2 10017/46656 ≈ 21,5 %; A2/V1 12348/46656 ≈ 26,5 % | 17871/46656 ≈ 38,3 % |
+
+**Auswirkung:** Bei 3 gegen 3 verliert der Angreifer im Schnitt 1,89 Einheiten pro Wurf, der Verteidiger 1,11. Das sind 1,71 Angreiferverluste je Verteidigerverlust, bei 3 gegen 2 sind es nur 0,85. Angriffe werden also etwa doppelt so teuer.
+
 ## 6. Spielplan: Gebiete und Nachbarschaften
 
 Alle Verbindungen gelten in beide Richtungen. Landgrenzen und Seestraßen sind nicht unterschieden. Es gibt **83 Verbindungen**.
@@ -296,7 +324,7 @@ Alle Verbindungen gelten in beide Richtungen. Landgrenzen und Seestraßen sind n
 
 | Thema | B7404 (2015) | Andere Ausgaben | Quelle |
 |---|---|---|---|
-| Verteidigungswürfel | max. 2, frei wählbar | 1999: 2 Würfel erst ab 3 Einheiten im Gebiet; italienisches RisiKo!: bis 3 | [S3][S6] |
+| Verteidigungswürfel | max. 2, frei wählbar | Schmidt (späte 60er) und Parker ab 1975: bis 3 (Wahlregel 5.4); 1999: 2 Würfel erst ab 3 Einheiten im Gebiet; RisiKo! (IT) und War! (BR): bis 3 | [S3][S6][S7][S9][S10] |
 | Kartentausch | 4, 6, 8, 10, 12, 15, dann +5, global | Ältere und Deluxe-Ausgaben: feste Werte je Symbolkombination | [S4][S6] |
 | Missionskarten | 12 Karten, 5 Farben | 1999: 14 Karten bei 6 Farben; 2004: 28 Karten, 4 Missionen pro Spieler | [S3][S4][S7] |
 | Spielerzahl | 2–5 | 1999: 2–6 | [S1][S3] |
@@ -314,3 +342,5 @@ Alle Verbindungen gelten in beide Richtungen. Landgrenzen und Seestraßen sind n
 | S6 | [Wikipedia (de): Risiko (Spiel)](https://de.wikipedia.org/wiki/Risiko_(Spiel)) | mittel: Tertiärquelle |
 | S7 | [Risk FAQ v5.61, University of Kent](https://www.kent.ac.uk/ims/personal/odl/riskfaq.htm) | mittel: Fan-FAQ, Stand 2006 |
 | S8 | [Osborne, J. A. (2003): Markov Chains for the RISK Board Game Revisited. *Mathematics Magazine* 76(2), 129–135](https://doi.org/10.1080/0025570X.2003.11953165) | hoch: begutachtete Fachzeitschrift der Mathematical Association of America |
+| S9 | [Spielemuseum Ludomu: Risiko (alte Ausgabe)](https://www.reich-der-spiele.de/ludomu/risiko) | mittel bis gering: Sammler-Rezension |
+| S10 | [Forum spielen.de: Spielanleitung für Risiko von 1975](https://www.spielen.de/forum/viewtopic.php?t=395191) | gering: Nutzerberichte |

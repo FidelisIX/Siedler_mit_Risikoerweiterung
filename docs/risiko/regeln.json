@@ -37,12 +37,23 @@
     "kent_faq": {
       "title": "Risk FAQ v5.61 (University of Kent, Stand 2006)",
       "url": "https://www.kent.ac.uk/ims/personal/odl/riskfaq.htm",
-      "trust": "mittel – Fan-FAQ, gut gepflegt, aber veraltet; für Missionstexte älterer Ausgaben"
+      "trust": "mittel – Fan-FAQ, gut gepflegt, aber veraltet; für Missionstexte älterer Ausgaben",
+      "note": "Nennt 3 Verteidigungswürfel für das italienische RisiKo! und das brasilianische War!"
     },
     "osborne_2003": {
       "title": "Osborne, J. A. (2003): Markov Chains for the RISK Board Game Revisited. Mathematics Magazine 76(2), 129–135",
       "url": "https://doi.org/10.1080/0025570X.2003.11953165",
       "trust": "hoch – begutachtete Fachzeitschrift (MAA); Werte hier zusätzlich selbst durch vollständige Aufzählung berechnet"
+    },
+    "ludomu": {
+      "title": "Risiko – alte Spiele, Spielemuseum Ludomu (Reich der Spiele)",
+      "url": "https://www.reich-der-spiele.de/ludomu/risiko",
+      "trust": "mittel bis gering – Sammler-Rezension einer alten Ausgabe"
+    },
+    "forum_spielen_de": {
+      "title": "Spielanleitung für Risiko von 1975 – Brettspiel-Forum spielen.de",
+      "url": "https://www.spielen.de/forum/viewtopic.php?t=395191",
+      "trust": "gering – Nutzerberichte"
     }
   },
   "components": {
@@ -1069,16 +1080,106 @@
         "5": "3 gegnerische HQ + eigenes"
       },
       "source": "hasbro_b7404_de"
+    },
+    "defender_three_dice": {
+      "name": "Parker 1975 – drei Verteidigungswürfel",
+      "optional_rule": true,
+      "combinable_with": [
+        "mission",
+        "classic",
+        "duel",
+        "turbo"
+      ],
+      "historical": {
+        "de": "Schmidt-Ausgabe (vermutl. späte 1960er) und Parker-Ausgabe ab 1975; ab ca. 1982 nur noch 2 Würfel",
+        "other_countries": [
+          "RisiKo! (Italien)",
+          "War! (Brasilien)"
+        ],
+        "source": [
+          "ludomu",
+          "forum_spielen_de",
+          "kent_faq",
+          "wikipedia_de"
+        ]
+      },
+      "changes": {
+        "components.dice.defender.count": 3,
+        "attack.defender_dice": "1, 2 oder 3 nach Wahl des Verteidigers, höchstens Einheiten im Gebiet"
+      },
+      "unverified": [
+        {
+          "topic": "Mindestzahl Einheiten für 3 Würfel",
+          "note": "In keiner Quelle angegeben. Die Grenze 'höchstens Einheiten im Gebiet' folgt nur der heutigen Regel (1 Würfel je verteidigende Einheit)."
+        },
+        {
+          "topic": "Gleichstand",
+          "note": "In keiner Quelle angegeben. Hier wie heute: Verteidiger gewinnt."
+        },
+        {
+          "topic": "Übrige Regeln der Ausgabe 1975",
+          "note": "Laut Forum nur Figuren zu 1 und 10 Einheiten und Begriff 'erobern'; Kartentausch, Missionen usw. der Ausgabe 1975 sind nicht belegt. Die Variante ändert daher nur die Würfelzahl."
+        }
+      ],
+      "battle_probabilities": {
+        "note": "Exakt durch Aufzählung berechnet; Gleichstand zugunsten des Verteidigers angenommen.",
+        "table": [
+          {
+            "attacker_dice": 1,
+            "defender_dice": 3,
+            "outcomes": {
+              "A0/D1": "225/1296",
+              "A1/D0": "1071/1296"
+            }
+          },
+          {
+            "attacker_dice": 2,
+            "defender_dice": 3,
+            "outcomes": {
+              "A0/D2": "979/7776",
+              "A1/D1": "1981/7776",
+              "A2/D0": "4816/7776"
+            }
+          },
+          {
+            "attacker_dice": 3,
+            "defender_dice": 3,
+            "outcomes": {
+              "A0/D3": "6420/46656",
+              "A1/D2": "10017/46656",
+              "A2/D1": "12348/46656",
+              "A3/D0": "17871/46656"
+            }
+          }
+        ],
+        "expected_losses_per_roll_3v3": {
+          "attacker": 1.893,
+          "defender": 1.107
+        },
+        "expected_losses_per_roll_3v2_for_comparison": {
+          "attacker": 0.921,
+          "defender": 1.079
+        }
+      },
+      "source": [
+        "ludomu",
+        "forum_spielen_de",
+        "kent_faq",
+        "wikipedia_de"
+      ]
     }
   },
   "edition_differences": [
     {
       "topic": "Verteidigungswürfel",
       "b7404": "max. 2",
-      "other": "1999 (de): 2 Würfel erst ab 3 Einheiten im Gebiet; ältere Ausgaben/RisiKo! (IT): bis 3",
+      "other": "Schmidt (späte 60er) und Parker ab 1975: bis 3 (siehe variants.defender_three_dice); 1999: 2 Würfel erst ab 3 Einheiten; RisiKo! (IT), War! (BR): bis 3",
       "source": [
         "hasbro_1999_de",
-        "wikipedia_de"
+        "wikipedia_de",
+        "ludomu",
+        "forum_spielen_de",
+        "kent_faq"
       ]
     },
     {

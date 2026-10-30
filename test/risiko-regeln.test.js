@@ -47,7 +47,11 @@ test('Kartentausch-Formel entspricht der Wertetabelle', () => {
 });
 
 test('Kampfwahrscheinlichkeiten stimmen mit vollständiger Aufzählung überein', () => {
-  for (const row of rules.battle_probabilities.table) {
+  const tables = [
+    ...rules.battle_probabilities.table,
+    ...rules.variants.defender_three_dice.battle_probabilities.table,
+  ];
+  for (const row of tables) {
     const counts = {};
     let total = 0;
     const rolls = (k) => (k === 0 ? [[]] : rolls(k - 1).flatMap((r) => [1, 2, 3, 4, 5, 6].map((v) => [...r, v])));
