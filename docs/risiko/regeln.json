@@ -54,6 +54,11 @@
       "title": "Spielanleitung für Risiko von 1975 – Brettspiel-Forum spielen.de",
       "url": "https://www.spielen.de/forum/viewtopic.php?t=395191",
       "trust": "gering – Nutzerberichte"
+    },
+    "user_recollection": {
+      "title": "Angabe des Projektinhabers aus eigener Spielerfahrung mit der Ausgabe der späten 1970er",
+      "url": null,
+      "trust": "mittel – Erinnerung eines Zeitzeugen, nicht durch Anleitung belegt"
     }
   },
   "components": {
@@ -1105,24 +1110,16 @@
       },
       "changes": {
         "components.dice.defender.count": 3,
-        "attack.defender_dice": "1, 2 oder 3 nach Wahl des Verteidigers, höchstens Einheiten im Gebiet"
+        "attack.defender_dice": "1, 2 oder 3 nach Wahl des Verteidigers; 3 Würfel erst ab 3 Einheiten im Gebiet (höchstens 1 Würfel je Einheit)"
       },
       "unverified": [
-        {
-          "topic": "Mindestzahl Einheiten für 3 Würfel",
-          "note": "In keiner Quelle angegeben. Die Grenze 'höchstens Einheiten im Gebiet' folgt nur der heutigen Regel (1 Würfel je verteidigende Einheit)."
-        },
-        {
-          "topic": "Gleichstand",
-          "note": "In keiner Quelle angegeben. Hier wie heute: Verteidiger gewinnt."
-        },
         {
           "topic": "Übrige Regeln der Ausgabe 1975",
           "note": "Laut Forum nur Figuren zu 1 und 10 Einheiten und Begriff 'erobern'; Kartentausch, Missionen usw. der Ausgabe 1975 sind nicht belegt. Die Variante ändert daher nur die Würfelzahl."
         }
       ],
       "battle_probabilities": {
-        "note": "Exakt durch Aufzählung berechnet; Gleichstand zugunsten des Verteidigers angenommen.",
+        "note": "Exakt durch Aufzählung berechnet; Gleichstand zugunsten des Verteidigers (user_recollection).",
         "table": [
           {
             "attacker_dice": 1,
@@ -1165,7 +1162,20 @@
         "ludomu",
         "forum_spielen_de",
         "kent_faq",
-        "wikipedia_de"
+        "wikipedia_de",
+        "user_recollection"
+      ],
+      "confirmed_by_user": [
+        {
+          "topic": "Mindestzahl Einheiten für 3 Würfel",
+          "value": "3 Einheiten",
+          "source": "user_recollection"
+        },
+        {
+          "topic": "Gleichstand",
+          "value": "Verteidiger gewinnt",
+          "source": "user_recollection"
+        }
       ]
     }
   },

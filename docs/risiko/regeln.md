@@ -210,7 +210,7 @@ Zur Orientierung die Missionen älterer Ausgaben [S7] (14 Karten bei 6 Farben):
 
 Lässt sich mit jeder der Varianten 5.1–5.3 und dem klassischen Spiel kombinieren. JSON: `variants.defender_three_dice`.
 
-**Änderung gegenüber 4.3:** Der Verteidiger würfelt mit 1, 2 oder 3 Würfeln nach eigener Wahl, höchstens so vielen, wie Einheiten im Gebiet stehen. Alle anderen Regeln bleiben gleich.
+**Änderung gegenüber 4.3:** Der Verteidiger würfelt mit 1, 2 oder 3 Würfeln nach eigener Wahl, höchstens so vielen, wie Einheiten im Gebiet stehen. 3 Würfel gibt es also erst ab 3 Einheiten. Bei Gleichstand gewinnt der Verteidiger. Alle anderen Regeln bleiben gleich.
 
 **Herkunft**
 
@@ -218,11 +218,9 @@ Lässt sich mit jeder der Varianten 5.1–5.3 und dem klassischen Spiel kombinie
 - Ab etwa 1982 nur noch 2 Verteidigungswürfel [S10].
 - Im Ausland z. B. im italienischen *RisiKo!* und im brasilianischen *War!* [S7].
 
-**⚠ Nicht belegt**
+**Bestätigt durch den Projektinhaber** [S11]: 3 Würfel ab 3 Einheiten; Gleichstand gewinnt der Verteidiger.
 
-- Ab wie vielen Einheiten 3 Würfel erlaubt waren. Die Grenze „höchstens so viele wie Einheiten“ übernimmt nur die heutige Regel.
-- Wer bei Gleichstand gewann. Hier gilt wie heute: der Verteidiger.
-- Die übrigen Regeln der Ausgabe 1975 (Kartentausch, Missionen). Die Wahlregel ändert deshalb nur die Würfelzahl.
+**⚠ Nicht belegt:** die übrigen Regeln der Ausgabe 1975 (Kartentausch, Missionen). Die Wahlregel ändert deshalb nur die Würfelzahl.
 
 **Wahrscheinlichkeiten je Wurf** (exakt berechnet, Gleichstand für den Verteidiger):
 
@@ -344,3 +342,4 @@ Alle Verbindungen gelten in beide Richtungen. Landgrenzen und Seestraßen sind n
 | S8 | [Osborne, J. A. (2003): Markov Chains for the RISK Board Game Revisited. *Mathematics Magazine* 76(2), 129–135](https://doi.org/10.1080/0025570X.2003.11953165) | hoch: begutachtete Fachzeitschrift der Mathematical Association of America |
 | S9 | [Spielemuseum Ludomu: Risiko (alte Ausgabe)](https://www.reich-der-spiele.de/ludomu/risiko) | mittel bis gering: Sammler-Rezension |
 | S10 | [Forum spielen.de: Spielanleitung für Risiko von 1975](https://www.spielen.de/forum/viewtopic.php?t=395191) | gering: Nutzerberichte |
+| S11 | Angabe des Projektinhabers aus eigener Spielerfahrung (Ausgabe späte 1970er) | mittel: Zeitzeugen-Erinnerung, nicht durch Anleitung belegt |
