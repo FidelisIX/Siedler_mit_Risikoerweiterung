@@ -149,6 +149,12 @@ Server stellt die Räume wieder her und die Partie läuft an derselben Stelle we
 | `STATS_BRANCH`       | `statistik`                               | Datenbranch; darf nicht `main` sein               |
 | `STATS_FILE`         | –                                         | Alternativ: lokale Datei (Entwicklung) ohne Token |
 
+## Aufgaben, Bugs und Wünsche
+
+- [docs/OFFENE_AUFGABEN.md](docs/OFFENE_AUFGABEN.md) – To-dos außerhalb des Codes (z. B. Token einrichten)
+- [docs/BUGS.md](docs/BUGS.md) – bekannte Fehler und Einschränkungen
+- [docs/FEATURE_REQUESTS.md](docs/FEATURE_REQUESTS.md) – Wünsche und Ideen
+
 ## Struktur
 
 ```
