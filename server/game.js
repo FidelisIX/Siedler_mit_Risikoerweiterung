@@ -1,16 +1,19 @@
 'use strict';
 
-const { generateMap, neighborIds } = require('./map');
+const { buildBoard, validateCustomMap, playableCount, neighborIds, MapError, PRESETS } = require('./map');
 
 const RESOURCES = ['holz', 'stein', 'nahrung', 'erz'];
-const TERRAIN_RESOURCE = { wald: 'holz', steinbruch: 'stein', acker: 'nahrung', mine: 'erz' };
+const TERRAIN_RESOURCE = { wald: 'holz', steinbruch: 'stein', acker: 'nahrung', mine: 'erz', wasser: 'nahrung' };
 // Geländewürfel: vier Geländeseiten und zwei Sterne (Stern = gewürfelte Region produziert doppelt).
 const TERRAIN_DIE = ['wald', 'steinbruch', 'acker', 'mine', 'stern', 'stern'];
 const BUILDINGS = {
-  siedlung: { name: 'Siedlung', cost: { holz: 1, stein: 1, nahrung: 1 }, points: 1, production: 1 },
-  gut: { name: 'Gutshof', cost: { nahrung: 2, erz: 2 }, points: 2, production: 2 },
-  markt: { name: 'Markt', cost: { holz: 2, stein: 1 }, points: 1, production: 0 },
-  monument: { name: 'Monument', cost: { holz: 1, stein: 2, nahrung: 1, erz: 2 }, points: 3, production: 0 },
+  siedlung: { name: 'Siedlung', article: 'eine', cost: { holz: 1, stein: 1, nahrung: 1 }, points: 1, production: 1 },
+  gut: { name: 'Gutshof', article: 'einen', cost: { nahrung: 2, erz: 2 }, points: 2, production: 2 },
+  hafen: { name: 'Hafen', article: 'einen', cost: { holz: 2, stein: 1, nahrung: 1 }, points: 1, production: 1 },
+  markt: { name: 'Markt', article: 'einen', cost: { holz: 2, stein: 1 }, points: 1, production: 0 },
+  monument: { name: 'Monument', article: 'ein', cost: { holz: 1, stein: 2, nahrung: 1, erz: 2 }, points: 3, production: 0 },
+  schiff: { name: 'Schiff', article: 'ein', cost: { holz: 1, erz: 1 }, points: 0, production: 0 },
+  fischerei: { name: 'Fischerei', article: 'eine', cost: { holz: 1, nahrung: 1 }, points: 0, production: 1 },
 };
 const START_RESOURCES = { holz: 2, stein: 2, nahrung: 2, erz: 1 };
 const COLORS = ['#e8590c', '#1c7ed6', '#2f9e44', '#f59f00', '#ae3ec9', '#0ca678'];
@@ -20,6 +23,12 @@ const ROUND_OPTIONS = [8, 12, 16];
 const BANK_RATE = 3;
 const MARKT_RATE = 2;
 const LOG_LIMIT = 60;
+const LAND_PER_PLAYER = 5;
+const MAP_OPTIONS = [
+  { kind: 'random', name: 'Zufällige Inselgruppe' },
+  { kind: 'kontinent', name: 'Kontinent (ohne Wasser)' },
+  ...PRESETS.map((p) => ({ kind: 'preset', id: p.id, name: p.name })),
+];
 
 class GameError extends Error {}
 
@@ -60,6 +69,7 @@ class Game {
     this.tileIndex = new Map();
     this.round = 0;
     this.maxRounds = 12;
+    this.mapChoice = { kind: 'random', name: MAP_OPTIONS[0].name };
     this.currentIndex = 0;
     this.setupQueue = [];
     this.hasRolled = false;
@@ -112,23 +122,48 @@ class Game {
     return neighborIds(tile).map((id) => this.tileIndex.get(id)).filter(Boolean);
   }
 
-  isAdjacentToOwn(tile, playerId) {
-    return this.neighbors(tile).some((n) => n.building && n.building.owner === playerId);
+  ownNeighbors(tile, playerId, predicate) {
+    return this.neighbors(tile).some((n) => n.building && n.building.owner === playerId && predicate(n));
   }
 
-  isValidStart(tile) {
-    return !tile.building && tile.terrain !== 'oedland' && this.neighbors(tile).every((n) => !n.building);
+  // Landgebäude dürfen neben eigene Landgebäude oder eigene Schiffe – so erreicht man andere Inseln.
+  reachableByLand(tile, playerId) {
+    return this.ownNeighbors(tile, playerId, (n) => n.terrain !== 'wasser' || n.building.type === 'schiff');
+  }
+
+  isPlayable(tile) {
+    return tile.terrain !== 'wasser' && tile.terrain !== 'oedland';
+  }
+
+  isCoastal(tile) {
+    return tile.terrain !== 'wasser' && this.neighbors(tile).some((n) => n.terrain === 'wasser');
+  }
+
+  // Start-Siedlungen halten Abstand zueinander; ist kein solches Feld mehr frei, entfällt der Abstand.
+  startCandidates() {
+    const free = this.tiles.filter((t) => !t.building && this.isPlayable(t));
+    const spaced = free.filter((t) => this.neighbors(t).every((n) => !n.building));
+    return spaced.length ? spaced : free;
   }
 
   isValidBuild(tile, playerId, type) {
+    if (type === 'gut') {
+      return !!tile.building && tile.building.owner === playerId && tile.building.type === 'siedlung';
+    }
+    if (tile.building) return false;
     switch (type) {
       case 'siedlung':
-        return !tile.building && tile.terrain !== 'oedland' && this.isAdjacentToOwn(tile, playerId);
-      case 'gut':
-        return !!tile.building && tile.building.owner === playerId && tile.building.type === 'siedlung';
+        return this.isPlayable(tile) && this.reachableByLand(tile, playerId);
+      case 'hafen':
+        return this.isPlayable(tile) && this.isCoastal(tile) && this.reachableByLand(tile, playerId);
       case 'markt':
       case 'monument':
-        return !tile.building && this.isAdjacentToOwn(tile, playerId);
+        return tile.terrain !== 'wasser' && this.reachableByLand(tile, playerId);
+      case 'schiff':
+        return tile.terrain === 'wasser'
+          && this.ownNeighbors(tile, playerId, (n) => n.building.type === 'hafen' || n.building.type === 'schiff');
+      case 'fischerei':
+        return tile.terrain === 'wasser' && this.ownNeighbors(tile, playerId, (n) => n.terrain !== 'wasser');
       default:
         return false;
     }
@@ -138,7 +173,7 @@ class Game {
     const current = this.currentPlayer();
     if (!current || current.id !== playerId) return null;
     if (this.phase === 'setup') {
-      return { start: this.tiles.filter((t) => this.isValidStart(t)).map((t) => t.id) };
+      return { start: this.startCandidates().map((t) => t.id) };
     }
     if (this.phase === 'main' && this.hasRolled) {
       const result = {};
@@ -200,12 +235,44 @@ class Game {
     this.maxRounds = rounds;
   }
 
+  setMap(playerId, payload) {
+    if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
+    if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das ändern.');
+    const kind = payload && payload.kind;
+    if (kind === 'custom') {
+      try {
+        const map = validateCustomMap(payload.map);
+        this.mapChoice = { kind, name: map.name, tiles: map.tiles };
+      } catch (err) {
+        if (err instanceof MapError) throw new GameError(err.message);
+        throw err;
+      }
+    } else {
+      const option = MAP_OPTIONS.find((o) => o.kind === kind && (kind !== 'preset' || o.id === payload.id));
+      if (!option) throw new GameError('Unbekannte Karte.');
+      this.mapChoice = { ...option };
+    }
+    this.addLog(`Karte: ${this.mapChoice.name}.`);
+  }
+
+  // Vorschau-Layout für die Lobby (bei Zufallskarten erst beim Start bekannt).
+  mapPreview() {
+    if (this.mapChoice.kind === 'custom') return this.mapChoice.tiles;
+    if (this.mapChoice.kind === 'preset') return PRESETS.find((p) => p.id === this.mapChoice.id).tiles;
+    return null;
+  }
+
   start(playerId) {
     if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
     if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann starten.');
     if (this.players.length < MIN_PLAYERS) throw new GameError(`Mindestens ${MIN_PLAYERS} Spieler nötig.`);
 
-    this.tiles = generateMap(this.players.length <= 4 ? 3 : 4, this.rng);
+    const tiles = buildBoard(this.mapChoice, this.players.length, this.rng);
+    const needed = this.players.length * LAND_PER_PLAYER;
+    if (playableCount(tiles) < needed) {
+      throw new GameError(`Die Karte ist zu klein: ${this.players.length} Spieler brauchen mindestens ${needed} bebaubare Landfelder.`);
+    }
+    this.tiles = tiles;
     this.tileIndex = new Map(this.tiles.map((t) => [t.id, t]));
     for (const p of this.players) p.resources = { ...START_RESOURCES };
     // Schlangenreihenfolge: 1..n, dann n..1 — jeder setzt zwei Start-Siedlungen.
@@ -220,8 +287,8 @@ class Game {
   placeStart(playerId, payload) {
     const player = this.requireTurn(playerId, 'setup');
     const tile = this.getTile(payload && payload.tileId);
-    if (!this.isValidStart(tile)) {
-      throw new GameError('Start-Siedlungen brauchen ein freies Feld ohne Nachbargebäude (kein Ödland).');
+    if (!this.startCandidates().includes(tile)) {
+      throw new GameError('Start-Siedlungen brauchen ein freies Landfeld ohne Nachbargebäude (kein Ödland).');
     }
     tile.building = { type: 'siedlung', owner: player.id };
     this.addLog(`${player.name} gründet eine Start-Siedlung.`);
@@ -245,7 +312,7 @@ class Game {
     const face = TERRAIN_DIE[Math.floor(this.rng() * 6)];
     const gains = {};
     for (const tile of this.tiles) {
-      if (!tile.building || tile.terrain === 'oedland') continue;
+      if (!tile.building) continue;
       const production = BUILDINGS[tile.building.type].production;
       if (!production) continue;
       let hits;
@@ -281,7 +348,7 @@ class Game {
     if (!canAfford(player.resources, def.cost)) throw new GameError('Nicht genug Rohstoffe.');
     for (const [res, n] of Object.entries(def.cost)) player.resources[res] -= n;
     tile.building = { type, owner: player.id };
-    this.addLog(`${player.name} baut ${type === 'gut' ? 'einen' : type === 'siedlung' ? 'eine' : 'ein'} ${def.name}.`);
+    this.addLog(`${player.name} baut ${def.article} ${def.name}.`);
   }
 
   bankTrade(playerId, payload) {
@@ -361,7 +428,7 @@ class Game {
     const current = this.currentPlayer();
     if (!current || current.connected) throw new GameError('Der aktuelle Spieler ist verbunden.');
     if (this.phase === 'setup') {
-      const options = this.tiles.filter((t) => this.isValidStart(t));
+      const options = this.startCandidates();
       const tile = options[Math.floor(this.rng() * options.length)];
       this.addLog(`Start-Siedlung für ${current.name} wird automatisch gesetzt.`);
       this.placeStart(current.id, { tileId: tile.id });
@@ -393,6 +460,9 @@ class Game {
       round: this.round,
       maxRounds: this.maxRounds,
       roundOptions: ROUND_OPTIONS,
+      mapOptions: MAP_OPTIONS,
+      map: { kind: this.mapChoice.kind, id: this.mapChoice.id || null, name: this.mapChoice.name },
+      mapPreview: this.phase === 'lobby' ? this.mapPreview() : null,
       currentPlayerId: current ? current.id : null,
       hasRolled: this.hasRolled,
       lastRoll: this.lastRoll,

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archipel Karteneditor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>Archipel · Karteneditor</strong>
+    <a href="/" class="link">Zum Spiel</a>
+  </header>
+  <main class="layout">
+    <div class="board-wrap">
+      <svg id="editor-board" class="editor-board" role="img" aria-label="Karteneditor"></svg>
+    </div>
+    <aside class="sidebar">
+      <div class="panel">
+        <h3>Pinsel</h3>
+        <div id="palette" class="palette"></div>
+        <p class="muted small-text">Klicken oder ziehen zum Malen. „Land (zufällig)“ wird beim Spielstart zu Wald, Steinbruch, Acker oder Mine.</p>
+      </div>
+      <div class="panel">
+        <h3>Karte</h3>
+        <label>Name <input id="map-name" maxlength="40" value="Meine Karte"></label>
+        <div id="stats" class="small-text"></div>
+        <div class="row">
+          <button id="save" class="small">Speichern</button>
+          <button id="coast" class="small secondary">Küste mit Wasser umranden</button>
+        </div>
+        <button id="clear" class="small secondary">Alles leeren</button>
+      </div>
+      <div class="panel">
+        <h3>Gespeicherte Karten</h3>
+        <div class="row">
+          <select id="saved"></select>
+          <button id="load" class="small">Laden</button>
+          <button id="delete" class="small secondary">Löschen</button>
+        </div>
+        <h3>Vorlagen</h3>
+        <div class="row">
+          <select id="templates"></select>
+          <button id="load-template" class="small">Laden</button>
+        </div>
+        <h3>Datei</h3>
+        <div class="row">
+          <button id="export" class="small secondary">Exportieren</button>
+          <label class="file-button small">Importieren<input id="import" type="file" accept="application/json,.json"></label>
+        </div>
+        <p class="muted small-text">Gespeicherte Karten liegen in diesem Browser. Als Gastgeber kannst du sie in der Lobby unter „Karte“ auswählen.</p>
+      </div>
+    </aside>
+  </main>
+  <div id="toast" class="toast hidden"></div>
+  <script src="hex.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

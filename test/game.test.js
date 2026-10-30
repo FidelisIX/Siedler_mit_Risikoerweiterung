@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Game, GameError, START_RESOURCES } = require('../server/game');
-const { generateMap } = require('../server/map');
+const { buildBoard, generateIslands, validateCustomMap, PRESETS, neighborIds, tileId } = require('../server/map');
 
 // Deterministischer Zufallsgenerator für reproduzierbare Tests.
 function seeded(seed) {
@@ -21,10 +21,17 @@ function scripted(values) {
   return () => (values[i++ % values.length] - 1) / 6 + 0.01;
 }
 
-function newGame(n, rng = seeded(1)) {
+function newGame(n, rng = seeded(1), map = { kind: 'kontinent' }) {
   const game = new Game('TEST', rng);
   for (let i = 0; i < n; i++) game.addPlayer(`p${i}`, `Spieler ${i}`);
+  game.setMap('p0', map);
   return game;
+}
+
+function regionSizes(tiles) {
+  const sizes = [0, 0, 0, 0, 0, 0];
+  for (const t of tiles) if (t.terrain !== 'wasser') sizes[t.region - 1]++;
+  return sizes;
 }
 
 function finishSetup(game) {
@@ -34,15 +41,73 @@ function finishSetup(game) {
   }
 }
 
-test('Karte: jede Region enthält jedes Gelände', () => {
-  for (const radius of [3, 4]) {
-    const tiles = generateMap(radius, seeded(radius));
-    assert.equal(tiles.length, 3 * radius * (radius + 1) + 1);
+test('Kontinent: jede Region enthält jedes Gelände', () => {
+  for (const players of [2, 6]) {
+    const tiles = buildBoard({ kind: 'kontinent' }, players, seeded(players));
     for (let region = 1; region <= 6; region++) {
       const terrains = new Set(tiles.filter((t) => t.region === region).map((t) => t.terrain));
       for (const t of ['wald', 'steinbruch', 'acker', 'mine']) assert.ok(terrains.has(t), `Region ${region} fehlt ${t}`);
     }
   }
+});
+
+test('Alle Karten: Regionen sind gleich groß, Wasser hat eine Region, kein Platzhalter bleibt übrig', () => {
+  const choices = [
+    { kind: 'random' }, { kind: 'kontinent' },
+    ...PRESETS.map((p) => ({ kind: 'preset', id: p.id })),
+  ];
+  for (const choice of choices) {
+    for (let seed = 1; seed <= 20; seed++) {
+      const tiles = buildBoard(choice, 2 + (seed % 5), seeded(seed));
+      const sizes = regionSizes(tiles);
+      assert.ok(Math.max(...sizes) - Math.min(...sizes) <= 1, `${choice.kind}/${choice.id}: ${sizes}`);
+      assert.ok(tiles.every((t) => t.region >= 1 && t.region <= 6 && t.terrain !== 'land'));
+    }
+  }
+});
+
+test('Zufällige Inselgruppe: mehrere getrennte Inseln mit Wasser, unterschiedliche Formen', () => {
+  const shapes = new Set();
+  for (let seed = 1; seed <= 30; seed++) {
+    const layout = generateIslands(4, seeded(seed));
+    const land = layout.filter((t) => t.terrain !== 'wasser');
+    assert.ok(layout.some((t) => t.terrain === 'wasser'));
+    assert.ok(land.length >= 20, `nur ${land.length} Landfelder`);
+    // Zusammenhangskomponenten des Landes zählen.
+    const ids = new Set(land.map((t) => tileId(t.q, t.r)));
+    const seen = new Set();
+    let islands = 0;
+    for (const t of land) {
+      const start = tileId(t.q, t.r);
+      if (seen.has(start)) continue;
+      islands++;
+      const stack = [t];
+      seen.add(start);
+      while (stack.length) {
+        const cur = stack.pop();
+        for (const n of neighborIds(cur)) {
+          if (ids.has(n) && !seen.has(n)) {
+            seen.add(n);
+            const [q, r] = n.split(',').map(Number);
+            stack.push({ q, r });
+          }
+        }
+      }
+    }
+    assert.ok(islands >= 2, `Seed ${seed}: nur ${islands} Insel(n)`);
+    shapes.add([...ids].sort().join('|'));
+  }
+  assert.ok(shapes.size > 25);
+});
+
+test('Eigene Karten werden geprüft', () => {
+  assert.throws(() => validateCustomMap({ tiles: [{ q: 0, r: 0, terrain: 'land' }] }), /mindestens/);
+  assert.throws(() => validateCustomMap({ tiles: [{ q: 99, r: 0, terrain: 'land' }] }), /Koordinaten/);
+  assert.throws(() => validateCustomMap({ tiles: [{ q: 0, r: 0, terrain: 'lava' }] }), /Gelände/);
+  const tiles = Array.from({ length: 12 }, (_, i) => ({ q: i, r: 0, terrain: 'land' }));
+  const map = validateCustomMap({ name: '  Streifen ', tiles: [...tiles, tiles[0]] });
+  assert.equal(map.name, 'Streifen');
+  assert.equal(map.tiles.length, 12);
 });
 
 test('Lobby: 2–6 Spieler, nur Gastgeber startet', () => {
@@ -54,6 +119,20 @@ test('Lobby: 2–6 Spieler, nur Gastgeber startet', () => {
   game.start('p0');
   assert.equal(game.phase, 'setup');
   assert.equal(game.tiles.length, 61);
+});
+
+test('Lobby: Kartenwahl und zu kleine Karten', () => {
+  const game = newGame(3);
+  assert.throws(() => game.setMap('p1', { kind: 'random' }), /Gastgeber/);
+  assert.throws(() => game.setMap('p0', { kind: 'preset', id: 'gibtsnicht' }), GameError);
+  const tiles = Array.from({ length: 12 }, (_, i) => ({ q: i, r: 0, terrain: 'land' }));
+  game.setMap('p0', { kind: 'custom', map: { name: 'Mini', tiles } });
+  assert.equal(game.publicState('p0').map.name, 'Mini');
+  assert.equal(game.publicState('p0').mapPreview.length, 12);
+  assert.throws(() => game.start('p0'), /zu klein/);
+  game.setMap('p0', { kind: 'preset', id: 'lagune' });
+  game.start('p0');
+  assert.ok(game.tiles.some((t) => t.terrain === 'wasser'));
 });
 
 test('Aufbau: Schlangenreihenfolge und Abstand zwischen Start-Siedlungen', () => {
@@ -117,7 +196,7 @@ test('Bauen: Kosten, Nachbarschaft und Ausbau', () => {
   assert.equal(game.getTile(target).building.type, 'gut');
   assert.equal(game.points('p0'), 4);
 
-  const far = game.tiles.find((t) => !t.building && !game.isAdjacentToOwn(t, 'p0') && t.terrain !== 'oedland');
+  const far = game.tiles.find((t) => !t.building && !game.reachableByLand(t, 'p0') && game.isPlayable(t));
   assert.throws(() => game.build('p0', { type: 'siedlung', tileId: far.id }), GameError);
 });
 
@@ -172,4 +251,60 @@ test('Getrennte Spieler können übersprungen werden', () => {
   game.forceSkip('p1');
   assert.equal(game.currentPlayer().id, 'p1');
   assert.throws(() => game.forceSkip('p0'), /verbunden/);
+});
+
+// Kleine Testkarte: Insel A (links), Wasserstraße, Insel B (rechts).
+//   A A ~ ~ B B
+function waterGame() {
+  const tiles = [
+    { q: 0, r: 0, terrain: 'wald' }, { q: 1, r: 0, terrain: 'acker' },
+    { q: 2, r: 0, terrain: 'wasser' }, { q: 3, r: 0, terrain: 'wasser' },
+    { q: 4, r: 0, terrain: 'mine' }, { q: 5, r: 0, terrain: 'steinbruch' },
+    ...Array.from({ length: 10 }, (_, i) => ({ q: i - 2, r: 3, terrain: 'acker' })),
+  ];
+  const game = newGame(2, seeded(3), { kind: 'custom', map: { name: 'Test', tiles } });
+  game.start('p0');
+  for (const t of game.tiles) t.building = null;
+  game.phase = 'main';
+  game.round = 1;
+  game.setupQueue = [];
+  game.hasRolled = true;
+  game.getTile('0,0').building = { type: 'siedlung', owner: 'p0' };
+  game.players[0].resources = { holz: 20, stein: 20, nahrung: 20, erz: 20 };
+  return game;
+}
+
+test('Wasser: Hafen nur an der Küste, Schiffe verbinden Inseln', () => {
+  const game = waterGame();
+  const valid = (type) => game.validTiles('p0')[type];
+  assert.deepEqual(valid('siedlung'), ['1,0']);
+  assert.deepEqual(valid('schiff'), []);
+  assert.deepEqual(valid('hafen'), ['1,0']);
+  assert.ok(!valid('siedlung').includes('2,0'), 'Auf Wasser darf keine Siedlung stehen');
+
+  game.build('p0', { type: 'hafen', tileId: '1,0' });
+  assert.deepEqual(valid('schiff'), ['2,0']);
+  game.build('p0', { type: 'schiff', tileId: '2,0' });
+  assert.deepEqual(valid('schiff'), ['3,0']);
+  assert.ok(!valid('siedlung').includes('4,0'), 'Insel B ist noch nicht erreicht');
+  game.build('p0', { type: 'schiff', tileId: '3,0' });
+  assert.ok(valid('siedlung').includes('4,0'));
+  game.build('p0', { type: 'siedlung', tileId: '4,0' });
+  assert.equal(game.points('p0'), 3);
+});
+
+test('Wasser: Fischerei produziert Nahrung, wenn ihre Region gewürfelt wird', () => {
+  const game = waterGame();
+  assert.deepEqual(game.validTiles('p0').fischerei, []);
+  game.build('p0', { type: 'siedlung', tileId: '1,0' });
+  game.build('p0', { type: 'fischerei', tileId: '2,0' });
+  assert.ok(!game.validTiles('p0').siedlung.includes('4,0'), 'Fischerei verlängert die Reichweite nicht');
+
+  for (const t of game.tiles) if (t.id !== '2,0') t.building = null;
+  const region = game.getTile('2,0').region;
+  game.endTurn('p0');
+  game.players[0].resources.nahrung = 0;
+  game.rng = scripted([region, 1]); // Region der Fischerei, Gelände Wald
+  game.roll('p1');
+  assert.equal(game.players[0].resources.nahrung, 1);
 });

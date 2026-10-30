@@ -6,18 +6,20 @@ const path = require('path');
 const express = require('express');
 const { Server } = require('socket.io');
 const { Game, GameError } = require('./game');
+const { PRESETS } = require('./map');
 
 const PORT = process.env.PORT || 3000;
 const ROOM_IDLE_MS = 30 * 60 * 1000;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACTIONS = new Set([
-  'setRounds', 'start', 'placeStart', 'roll', 'build',
+  'setRounds', 'setMap', 'start', 'placeStart', 'roll', 'build',
   'bankTrade', 'proposeTrade', 'respondTrade', 'cancelTrade', 'endTurn', 'forceSkip',
 ]);
 
 const app = express();
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('/healthz', (req, res) => res.send('ok'));
+app.get('/api/maps', (req, res) => res.json(PRESETS));
 
 const server = http.createServer(app);
 const io = new Server(server);

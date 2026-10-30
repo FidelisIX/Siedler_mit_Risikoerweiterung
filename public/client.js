@@ -4,16 +4,10 @@ const socket = io();
 
 const RESOURCES = ['holz', 'stein', 'nahrung', 'erz'];
 const RESOURCE_LABEL = { holz: '🪵 Holz', stein: '🧱 Stein', nahrung: '🌾 Nahrung', erz: '⛓️ Erz' };
-const TERRAIN = {
-  wald: { color: '#2b8a3e', icon: '🌲', label: 'Wald' },
-  steinbruch: { color: '#a8a29e', icon: '🪨', label: 'Steinbruch' },
-  acker: { color: '#e9c46a', icon: '🌾', label: 'Acker' },
-  mine: { color: '#7c5c45', icon: '⛏️', label: 'Mine' },
-  oedland: { color: '#d8cba8', icon: '', label: 'Ödland' },
-};
 const FACE_LABEL = { wald: '🌲 Wald', steinbruch: '🪨 Steinbruch', acker: '🌾 Acker', mine: '⛏️ Mine', stern: '⭐ Stern' };
-const BUILDING_ICON = { siedlung: '🏠', gut: '🏡', markt: '⚖️', monument: '🗼' };
-const HEX_SIZE = 40;
+const BUILDING_ICON = { siedlung: '🏠', gut: '🏡', hafen: '⚓', markt: '⚖️', monument: '🗼', schiff: '⛵', fischerei: '🐟' };
+const { TERRAIN, SIZE: HEX_SIZE, svg } = Hex;
+const MAPS_KEY = 'archipel-maps';
 
 const $ = (id) => document.getElementById(id);
 
@@ -113,6 +107,25 @@ socket.on('connect', () => {
 // ---------- Lobby ----------
 
 $('rounds').onchange = () => act('setRounds', { rounds: Number($('rounds').value) });
+
+function savedMaps() {
+  try {
+    const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '[]');
+    return Array.isArray(maps) ? maps : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+$('map').onchange = () => {
+  const [kind, id] = $('map').value.split(':');
+  if (kind === 'local') {
+    const map = savedMaps()[Number(id)];
+    if (map) act('setMap', { kind: 'custom', map });
+  } else if (kind !== 'custom') {
+    act('setMap', { kind, id });
+  }
+};
 $('start').onclick = () => act('start');
 $('copy-link').onclick = () => {
   const link = `${location.origin}/?raum=${state.code}`;
@@ -145,32 +158,27 @@ function renderLobby() {
   rounds.value = state.maxRounds;
   rounds.disabled = !isHost;
   $('start').disabled = !isHost || state.players.length < 2;
+
+  const mapSelect = $('map');
+  const options = state.mapOptions.map((o) => [`${o.kind}:${o.id || ''}`, o.name]);
+  if (state.map.kind === 'custom') options.push(['custom:', `Eigene: ${state.map.name}`]);
+  if (isHost) savedMaps().forEach((m, i) => options.push([`local:${i}`, `Aus Editor: ${m.name}`]));
+  mapSelect.replaceChildren(...options.map(([value, label]) => el('option', { value }, label)));
+  mapSelect.value = state.map.kind === 'custom' ? 'custom:' : `${state.map.kind}:${state.map.id || ''}`;
+  mapSelect.disabled = !isHost;
+  const preview = $('map-preview');
+  preview.classList.toggle('hidden', !state.mapPreview);
+  if (state.mapPreview) Hex.drawPreview(preview, state.mapPreview);
+  $('map-info').textContent = {
+    random: 'Bei jedem Spiel neu erzeugte Inseln.',
+    kontinent: 'Eine zusammenhängende Landmasse ohne Wasser.',
+  }[state.map.kind] || 'Grüne Felder mit ❔ werden beim Start zufällig belegt.';
   $('lobby-hint').textContent = isHost
     ? (state.players.length < 2 ? 'Warte auf mindestens einen weiteren Spieler …' : '')
     : 'Warte, bis der Gastgeber das Spiel startet …';
 }
 
 // ---------- Spielbrett ----------
-
-function hexCorners(cx, cy) {
-  const pts = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i - 30);
-    pts.push(`${(cx + HEX_SIZE * Math.cos(angle)).toFixed(1)},${(cy + HEX_SIZE * Math.sin(angle)).toFixed(1)}`);
-  }
-  return pts.join(' ');
-}
-
-function hexCenter(tile) {
-  return { x: HEX_SIZE * Math.sqrt(3) * (tile.q + tile.r / 2), y: HEX_SIZE * 1.5 * tile.r };
-}
-
-function svg(tag, attrs = {}, text) {
-  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 function currentTargets() {
   if (!state.validTiles) return new Set();
@@ -197,23 +205,18 @@ function onTileClick(tile) {
 function renderBoard() {
   const board = $('board');
   const targets = currentTargets();
-  const centers = state.tiles.map(hexCenter);
-  const xs = centers.map((c) => c.x);
-  const ys = centers.map((c) => c.y);
-  const pad = HEX_SIZE * 1.2;
-  const minX = Math.min(...xs) - pad;
-  const minY = Math.min(...ys) - pad;
-  board.setAttribute('viewBox', `${minX} ${minY} ${Math.max(...xs) - minX + pad} ${Math.max(...ys) - minY + pad}`);
+  const centers = state.tiles.map((t) => Hex.center(t));
+  Hex.fitViewBox(board, state.tiles);
 
   const nodes = state.tiles.map((tile, i) => {
     const { x, y } = centers[i];
     const terrain = TERRAIN[tile.terrain];
-    const classes = ['tile'];
+    const classes = ['tile', tile.terrain === 'wasser' ? 'water' : 'land'];
     if (targets.has(tile.id)) classes.push('valid');
     if (rollHit(tile)) classes.push('hit');
     const g = svg('g', { class: classes.join(' ') });
     const title = svg('title', {}, `${terrain.label}${tile.region ? ` · Region ${tile.region}` : ''}`);
-    g.append(title, svg('polygon', { points: hexCorners(x, y), fill: terrain.color }));
+    g.append(title, svg('polygon', { points: Hex.corners(x, y), fill: terrain.color }));
     if (tile.region) g.append(svg('text', { x, y: y - HEX_SIZE * 0.55, 'text-anchor': 'middle', class: 'region-label' }, tile.region));
     if (tile.building) {
       const owner = playerById(tile.building.owner);

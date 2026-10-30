@@ -16,6 +16,7 @@
       <div class="divider">oder</div>
       <label>Raum-Code <input id="code" maxlength="5" class="code-input"></label>
       <button id="join" class="secondary">Raum beitreten</button>
+      <a href="editor.html" class="link">Karteneditor</a>
       <details class="rules">
         <summary>Spielregeln</summary>
         <ul>
@@ -24,9 +25,12 @@
           <li><b>Würfeln:</b> Wer am Zug ist, wirft den Regionswürfel (1–6) und den Geländewürfel (Wald, Steinbruch, Acker, Mine, 2× Stern).
             Jede Siedlung in der gewürfelten Region produziert, ebenso jede Siedlung auf dem gewürfelten Gelände – trifft beides zu, doppelt.
             Bei Stern produziert nur die gewürfelte Region, dafür doppelt.</li>
-          <li><b>Bauen:</b> Neue Gebäude nur auf Feldern neben eigenen Gebäuden, ein Gebäude pro Feld.</li>
+          <li><b>Bauen:</b> Ein Gebäude pro Feld. Landgebäude nur neben eigenen Landgebäuden oder eigenen Schiffen.</li>
           <li><b>Gebäude:</b> Siedlung (1 Punkt, produziert 1), Gutshof (Ausbau einer Siedlung, 2 Punkte, produziert 2),
-            Markt (1 Punkt, Banktausch 2:1 statt 3:1), Monument (3 Punkte). Markt und Monument dürfen auch aufs Ödland.</li>
+            Hafen (nur an der Küste, 1 Punkt, produziert 1), Markt (1 Punkt, Banktausch 2:1 statt 3:1), Monument (3 Punkte).
+            Markt und Monument dürfen auch aufs Ödland.</li>
+          <li><b>Wasser:</b> Schiffe liegen neben dem eigenen Hafen oder Schiff und bringen dich zu anderen Inseln.
+            Fischereien liegen neben eigenen Landgebäuden und liefern Nahrung, wenn ihre Region gewürfelt wird.</li>
           <li><b>Handel:</b> Mit der Bank (3:1) oder Angebote an Mitspieler.</li>
         </ul>
       </details>
@@ -43,6 +47,12 @@
       <label>Runden
         <select id="rounds"></select>
       </label>
+      <label>Karte
+        <select id="map"></select>
+      </label>
+      <svg id="map-preview" class="map-preview hidden" aria-label="Kartenvorschau"></svg>
+      <p id="map-info" class="muted small-text"></p>
+      <a href="editor.html" target="_blank" class="link">Karteneditor öffnen ↗</a>
       <button id="start">Spiel starten</button>
       <p id="lobby-hint" class="muted"></p>
       <button id="leave" class="secondary small">Raum verlassen</button>
@@ -111,6 +121,7 @@
   </section>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="hex.js"></script>
   <script src="client.js"></script>
 </body>
 </html>
