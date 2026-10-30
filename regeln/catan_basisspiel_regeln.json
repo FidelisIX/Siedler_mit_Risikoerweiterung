@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "title": "CATAN – Das Spiel (Basisspiel, 3–4 Spieler)",
+    "purpose": "Maschinenlesbares Regelwerk für KI-Agenten und Spiel-Engines. Regel-IDs identisch mit catan_basisspiel_regeln.md.",
+    "rules_edition": "6th edition (2025), v6.250401",
+    "language": "de",
+    "retrieved": "2026-10-30",
+    "sources": {
+      "Q1": {
+        "title": "CATAN – The Game, Rulebook (6th edition, v6.250401)",
+        "publisher": "CATAN GmbH / CATAN Studio",
+        "year": 2025,
+        "official": true,
+        "url": "https://www.catan.com/sites/default/files/2025-03/CN3081%20CATAN%E2%80%93The%20Game%20Rulebook%20secure%20%281%29.pdf"
+      },
+      "Q2": {
+        "title": "CATAN – Game Rules & Almanac (3–4 Players)",
+        "publisher": "CATAN Studio",
+        "year": 2020,
+        "official": true,
+        "url": "https://www.catan.com/sites/default/files/2021-06/catan_base_rules_2020_200707.pdf"
+      },
+      "Q3": {
+        "title": "CATAN – Das Spiel, Almanach (Regelstand Januar 2015)",
+        "publisher": "Franckh-Kosmos Verlags-GmbH & Co. KG",
+        "year": 2015,
+        "official": true,
+        "url": "https://www.catan.de/sites/default/files/2021-07/Catan_Basisspiel_Almanach.pdf"
+      },
+      "Q4": {
+        "title": "CATAN – Das Spiel, Jubiläumsausgabe 25 Jahre, Spielanleitung",
+        "publisher": "Franckh-Kosmos Verlags-GmbH & Co. KG",
+        "official": true,
+        "url": "https://www.catan.de/sites/default/files/2021-07/695217_catan_basisjubi25_manual_web_0.pdf"
+      }
+    }
+  },
+
+  "players": { "min": 3, "max": 4, "turn_order": "clockwise" },
+
+  "resources": ["wood", "brick", "wool", "grain", "ore"],
+  "resource_names_de": { "wood": "Holz", "brick": "Lehm", "wool": "Wolle", "grain": "Getreide", "ore": "Erz" },
+
+  "terrain": {
+    "forest":    { "name_de": "Wald",      "produces": "wood",  "count": 4 },
+    "hills":     { "name_de": "Hügelland", "produces": "brick", "count": 3 },
+    "pasture":   { "name_de": "Weideland", "produces": "wool",  "count": 4 },
+    "fields":    { "name_de": "Ackerland", "produces": "grain", "count": 4 },
+    "mountains": { "name_de": "Gebirge",   "produces": "ore",   "count": 3 },
+    "desert":    { "name_de": "Wüste",     "produces": null,    "count": 1, "number_token": false, "robber_start": true }
+  },
+
+  "components": {
+    "resource_cards_per_type": 19,
+    "resource_cards_total": 95,
+    "development_cards": {
+      "knight": 14,
+      "road_building": 2,
+      "year_of_plenty": 2,
+      "monopoly": 2,
+      "victory_point": 5,
+      "total": 25
+    },
+    "number_tokens": {
+      "distribution": { "2": 1, "3": 2, "4": 2, "5": 2, "6": 2, "8": 2, "9": 2, "10": 2, "11": 2, "12": 1 },
+      "total": 18,
+      "red_numbers": [6, 8],
+      "letter_order_A_to_R": {
+        "values": [5, 2, 6, 3, 8, 10, 9, 12, 11, 4, 8, 10, 9, 4, 5, 6, 3, 11],
+        "verified": false,
+        "note": "Nicht im Text der offiziellen PDFs enthalten (nur auf den Chips aufgedruckt). Weit verbreitete Angabe; vor Verwendung am physischen Material prüfen."
+      }
+    },
+    "ports": {
+      "total": 9,
+      "generic_3_1": 4,
+      "special_2_1": { "wood": 1, "brick": 1, "wool": 1, "grain": 1, "ore": 1 }
+    },
+    "pieces_per_player": { "road": 15, "settlement": 5, "city": 4 },
+    "special_cards": { "longest_road": 2, "largest_army": 2 },
+    "robber": 1,
+    "dice": 2,
+    "sources": ["Q1", "Q3", "Q4"]
+  },
+
+  "board_topology": {
+    "shape": "hexagon radius 2",
+    "land_hexes": 19,
+    "vertices": 54,
+    "edges": 72,
+    "derived": true,
+    "note": "Per Skript aus einem hexagonalen Gitter mit Radius 2 berechnet, nicht aus der Anleitung."
+  },
+
+  "dice_distribution_2d6": {
+    "outcomes_of_36": { "2": 1, "3": 2, "4": 3, "5": 4, "6": 5, "7": 6, "8": 5, "9": 4, "10": 3, "11": 2, "12": 1 },
+    "derived": true
+  },
+
+  "victory": {
+    "target_vp": 10,
+    "check": "only_active_player_during_own_turn",
+    "ends_immediately": true,
+    "vp_sources": {
+      "settlement": 1,
+      "city": 2,
+      "longest_road": 2,
+      "largest_army": 2,
+      "victory_point_card": 1,
+      "road": 0
+    },
+    "rule_ids": ["R-GOAL-01", "R-GOAL-02", "R-END-01"],
+    "sources": ["Q1", "Q3"]
+  },
+
+  "costs": {
+    "road":             { "wood": 1, "brick": 1 },
+    "settlement":       { "wood": 1, "brick": 1, "wool": 1, "grain": 1 },
+    "city":             { "ore": 3, "grain": 2 },
+    "development_card": { "ore": 1, "wool": 1, "grain": 1 },
+    "sources": ["Q1", "Q4"]
+  },
+
+  "setup": {
+    "beginner_fixed_layout": {
+      "id": "R-SETUP-01",
+      "available": false,
+      "note": "Nur als Abbildung in Q1/Q4; Koordinaten nicht übernommen (GAP-03)."
+    },
+    "rules": [
+      { "id": "R-SETUP-02", "text": "Rahmenteile zufällig zusammensetzen (2015/2020: Hafenplättchen zufällig verteilen).", "sources": ["Q1", "Q2"] },
+      { "id": "R-SETUP-03", "text": "Landfelder zufällig in den Rahmen legen.", "sources": ["Q1", "Q3"] },
+      { "id": "R-SETUP-04", "text": "Zahlenchips in Buchstabenreihenfolge A–R ab einem Eckfeld gegen den Uhrzeigersinn spiralförmig zur Mitte legen, Wüste überspringen, dann umdrehen.", "sources": ["Q1", "Q2", "Q3"] },
+      { "id": "R-SETUP-05", "text": "Alternative: vollständig zufällige Zahlen, aber 6 und 8 dürfen nicht auf benachbarten Feldern liegen.", "optional": true, "sources": ["Q2"] },
+      { "id": "R-SETUP-06", "text": "Räuber startet auf der Wüste.", "sources": ["Q1", "Q3"] },
+      { "id": "R-SETUP-07", "text": "Rohstoffkarten offen nach Sorte als Vorrat; Entwicklungskarten gemischt und verdeckt.", "sources": ["Q1", "Q3"] },
+      { "id": "R-SETUP-08", "text": "Bei 3 Spielern wird eine Farbe nicht verwendet.", "sources": ["Q1", "Q4"] }
+    ],
+    "founding_phase": {
+      "start_player": { "id": "R-SETUP-10", "method": "Jeder würfelt 2W6, höchste Summe beginnt.", "tie": "GAP-01", "sources": ["Q1", "Q3"] },
+      "rounds": [
+        { "id": "R-SETUP-11", "round": 1, "order": "clockwise_from_start_player", "place": ["settlement", "road_adjacent_to_that_settlement"] },
+        { "id": "R-SETUP-12", "round": 2, "order": "counterclockwise_from_last_player", "place": ["settlement", "road_adjacent_to_that_settlement"], "note": "Startspieler setzt als Letzter; zweite Siedlung muss nicht mit der ersten verbunden sein." }
+      ],
+      "distance_rule_applies": { "id": "R-SETUP-13", "value": true },
+      "road_connection_required_for_settlement": false,
+      "starting_resources": { "id": "R-SETUP-14", "trigger": "second_settlement", "amount": "1 Karte je angrenzendem Landfeld (Wüste: 0)" },
+      "first_turn": { "id": "R-SETUP-15", "player": "start_player" },
+      "sources": ["Q1", "Q3"]
+    }
+  },
+
+  "turn_structure": {
+    "edition_2025": [
+      {
+        "phase": "production",
+        "steps": [
+          { "step": "play_development_card", "optional": true, "counts_as_turn_dev_card": true },
+          { "step": "roll_dice", "optional": false },
+          { "step": "resolve", "if_roll": "2-6,8-12", "action": "produce_resources" },
+          { "step": "resolve", "if_roll": "7", "action": "resolve_seven" }
+        ]
+      },
+      {
+        "phase": "action",
+        "any_order": true,
+        "repeatable": true,
+        "actions": ["trade_domestic", "trade_maritime", "build_road", "build_settlement", "build_city", "buy_development_card", "play_development_card_if_none_played"]
+      },
+      { "phase": "end_turn", "next_player": "left_neighbor" }
+    ],
+    "edition_diff_de_2015": {
+      "order": ["roll_dice", "trade", "build"],
+      "trade_and_build_separated": true,
+      "port_usable_same_turn": false,
+      "variant_combined_trade_build": { "recommended_for": "experienced", "port_usable_same_turn": true },
+      "sources": ["Q3", "Q4"]
+    },
+    "sources": ["Q1"]
+  },
+
+  "production": {
+    "rules": [
+      { "id": "R-PROD-01", "text": "Alle Landfelder mit Zahlenchip = Würfelsumme produzieren." },
+      { "id": "R-PROD-02", "text": "Pro angrenzender Siedlung 1, pro angrenzender Stadt 2 Karten; gilt für alle Spieler.", "yield": { "settlement": 1, "city": 2 } },
+      { "id": "R-PROD-03", "text": "Feld mit Räuber produziert nicht." },
+      { "id": "R-PROD-04", "text": "Reicht der Vorrat eines Rohstoffs nicht für alle, erhält niemand diesen Rohstoff; ist nur ein Spieler betroffen, erhält er den Rest.", "sources": ["Q1", "Q2"] }
+    ],
+    "sources": ["Q1", "Q3"]
+  },
+
+  "seven_rolled": {
+    "rules": [
+      { "id": "R-SEVEN-01", "text": "Kein Feld produziert." },
+      { "id": "R-SEVEN-02", "text": "Jeder Spieler mit mehr als 7 Rohstoffkarten wirft floor(n/2) Karten seiner Wahl ab.", "hand_limit": 7, "discard": "floor(n/2)", "dev_cards_count": false },
+      { "id": "R-SEVEN-03", "text": "Aktiver Spieler MUSS den Räuber auf ein anderes Landfeld versetzen.", "must_change_hex": true, "desert_allowed": true, "desert_allowed_note": "GAP-04" },
+      { "id": "R-SEVEN-04", "text": "1 zufällige Rohstoffkarte von einem Mitspieler mit Gebäude am Zielfeld rauben; bei mehreren wählt der aktive Spieler.", "victim": "opponent_with_building_on_hex", "card": "random_resource" },
+      { "id": "R-SEVEN-05", "text": "Danach weiter mit der Aktionsphase." }
+    ],
+    "sources": ["Q1", "Q3", "Q4"]
+  },
+
+  "trade": {
+    "rules": [
+      { "id": "R-TRADE-01", "text": "Nur der aktive Spieler handelt; Mitspieler nur mit ihm, nicht untereinander." },
+      { "id": "R-TRADE-02", "text": "Binnenhandel: Konditionen frei verhandelbar." },
+      { "id": "R-TRADE-03", "text": "Kein Verschenken (0:n), kein Tausch gleicher Rohstoffe." },
+      { "id": "R-TRADE-04", "text": "Entwicklungskarten nicht handelbar/verschenkbar." },
+      { "id": "R-TRADE-05", "text": "Seehandel 4:1 ohne Hafen.", "ratio": 4 },
+      { "id": "R-TRADE-06", "text": "3:1 mit Gebäude an einem 3:1-Hafen.", "ratio": 3, "requires": "building_on_generic_port_vertex" },
+      { "id": "R-TRADE-07", "text": "2:1 nur für den abgebildeten Rohstoff mit Gebäude am Spezialhafen; kein 3:1 für andere Rohstoffe.", "ratio": 2, "requires": "building_on_matching_special_port_vertex" },
+      { "id": "R-TRADE-08", "text": "Seehandel beliebig oft und in Vielfachen." }
+    ],
+    "port_vertices_per_port": 2,
+    "maritime_receive": "any_other_resource",
+    "sources": ["Q1", "Q2", "Q3", "Q4"]
+  },
+
+  "building": {
+    "road": [
+      { "id": "R-BUILD-01", "text": "Auf freiem Weg, max. 1 Straße pro Weg." },
+      { "id": "R-BUILD-02", "text": "Muss an eigene Straße, Siedlung oder Stadt anschließen." },
+      { "id": "R-BUILD-03", "text": "Nicht über eine Kreuzung mit fremdem Gebäude hinweg fortsetzen." }
+    ],
+    "settlement": [
+      { "id": "R-BUILD-10", "text": "Freie Kreuzung mit mind. 1 angrenzender eigener Straße (außer Gründungsphase)." },
+      { "id": "R-BUILD-11", "text": "Abstandsregel: keine benachbarte Kreuzung mit Siedlung/Stadt (egal welcher Farbe).", "min_edge_distance_to_any_building": 2 },
+      { "id": "R-BUILD-12", "text": "Alle 5 Siedlungen verbaut → erst eine zur Stadt ausbauen." }
+    ],
+    "city": [
+      { "id": "R-BUILD-20", "text": "Nur Ausbau einer eigenen Siedlung; Siedlung geht in den Vorrat zurück." },
+      { "id": "R-BUILD-21", "text": "Straßen und Städte bleiben bis Spielende liegen." }
+    ],
+    "development_card": [
+      { "id": "R-BUILD-30", "text": "Oberste Karte ziehen, geheim halten." },
+      { "id": "R-BUILD-31", "text": "Leerer Stapel → kein Kauf; ausgespielte Karten kommen nicht zurück." }
+    ],
+    "sources": ["Q1", "Q3", "Q4"]
+  },
+
+  "development_cards": {
+    "rules": [
+      { "id": "R-DEV-01", "text": "Max. 1 Ritter- oder Fortschrittskarte pro Zug, jederzeit im eigenen Zug, auch vor dem Würfeln.", "max_per_turn": 1 },
+      { "id": "R-DEV-02", "text": "Nicht im Kaufzug ausspielen." },
+      { "id": "R-DEV-03", "text": "Siegpunktkarten: beliebig viele, auch im Kaufzug, nur zum Erreichen des Sieges aufdecken." },
+      { "id": "R-DEV-04", "text": "Zählen nicht zum Handlimit bei 7, nicht raubbar." }
+    ],
+    "cards": {
+      "knight":         { "name_de": "Ritter",     "count": 14, "effect": "move_robber_and_steal", "stays_face_up": true, "triggers_discard": false },
+      "road_building":  { "name_de": "Straßenbau", "count": 2,  "effect": "build_2_roads_free", "normal_road_rules_apply": true },
+      "year_of_plenty": { "name_de": "Erfindung",  "count": 2,  "effect": "take_2_resources_from_supply", "same_type_allowed": true },
+      "monopoly":       { "name_de": "Monopol",    "count": 2,  "effect": "name_1_resource_all_opponents_give_all" },
+      "victory_point":  { "name_de": "Siegpunkt",  "count": 5,  "effect": "1_vp_hidden", "exempt_from_play_limit": true, "playable_on_purchase_turn": true }
+    },
+    "sources": ["Q1", "Q2", "Q3"]
+  },
+
+  "special_cards": {
+    "largest_army": {
+      "name_de": "Größte Rittermacht",
+      "vp": 2,
+      "rules": [
+        { "id": "R-ARMY-01", "text": "Erster mit 3 ausgespielten Rittern.", "min_knights": 3 },
+        { "id": "R-ARMY-02", "text": "Wer mehr Ritter als der Besitzer hat, erhält sie sofort; Gleichstand: Besitzer behält.", "transfer": "strictly_more" }
+      ]
+    },
+    "longest_road": {
+      "name_de": "Längste Handelsstraße",
+      "vp": 2,
+      "rules": [
+        { "id": "R-ROAD-01", "text": "Erster mit durchgehendem Straßenzug ≥ 5; gezählt wird der längste einfache Pfad, Abzweigungen zählen nicht.", "min_length": 5, "metric": "longest_simple_path_edges" },
+        { "id": "R-ROAD-02", "text": "Längerer Straßenzug übernimmt sofort; Gleichstand: Besitzer behält.", "transfer": "strictly_longer" },
+        { "id": "R-ROAD-03", "text": "Fremde Siedlung/Stadt auf einer Kreuzung unterbricht; eigene nicht.", "broken_by": "opponent_building_on_vertex" },
+        { "id": "R-ROAD-04", "text": "Nach Unterbrechung: Besitzer (mit-)längster → behält; sonst bei Gleichstand mehrerer oder niemand ≥ 5 → beiseite legen, bis genau ein Spieler alleiniger Längster (≥ 5) ist.", "set_aside_conditions": ["holder_not_longest_and_tie", "no_road_ge_5"] }
+      ]
+    },
+    "sources": ["Q1", "Q2", "Q3", "Q4"]
+  },
+
+  "gaps_and_assumptions": [
+    { "id": "GAP-01", "topic": "Gleichstand beim Startspieler-Wurf", "status": "nicht geregelt", "assumption": "Beteiligte würfeln erneut" },
+    { "id": "GAP-02", "topic": "Zuordnung Buchstabe A–R → Zahl", "status": "nicht im PDF-Text", "assumption": "siehe components.number_tokens.letter_order_A_to_R (verified=false)" },
+    { "id": "GAP-03", "topic": "Koordinaten der Einsteiger-Aufstellung", "status": "nur Abbildung", "assumption": "nicht enthalten" },
+    { "id": "GAP-04", "topic": "Räuber auf die Wüste", "status": "nicht explizit verboten", "assumption": "erlaubt (beliebiges anderes Landfeld)" },
+    { "id": "GAP-05", "topic": "Angebote von Mitspielern", "status": "erlaubt", "assumption": "Mitspieler dürfen dem aktiven Spieler Angebote machen (Q3, Taktik)" }
+  ]
+}
