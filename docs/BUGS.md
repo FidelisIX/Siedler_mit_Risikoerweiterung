@@ -30,8 +30,8 @@ Bekannte Fehler und Einschränkungen. Neue Einträge oben bei „Offen“ ergän
 - **Wo:** Server
 - **Erwartet:** Laufende Partien überstehen jeden Neustart.
 - **Tatsächlich:** Räume werden nur bei SIGTERM (z. B. Deploy auf Render) gesichert. Bei einem Absturz
-  oder ohne `STATS_GITHUB_TOKEN` (siehe docs/OFFENE_AUFGABEN.md, A-001) gehen sie verloren.
-  Sicherungen älter als 10 Minuten werden verworfen.
+  gehen sie verloren. Sicherungen älter als 10 Minuten werden verworfen.
+  (Der fehlende `STATS_GITHUB_TOKEN` ist seit 2026-11-11 kein Grund mehr, siehe docs/OFFENE_AUFGABEN.md, A-001.)
 
 ---
 
