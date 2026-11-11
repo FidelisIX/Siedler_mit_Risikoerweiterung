@@ -187,6 +187,18 @@ $('rematch').onclick = () => act('voteRematch', { vote: !state.rematchVotes.incl
 $('restart-now').onclick = () => act('start');
 $('to-lobby').onclick = () => act('backToLobby');
 
+// Eigenes Team wählt jeder selbst; der Gastgeber kann alle umsetzen (Veto).
+function teamSelect(player) {
+  const select = el('select', { class: 'team-select', 'aria-label': `Team von ${player.name}` });
+  select.append(el('option', { value: '' }, '– Team –'), ...state.teamOptions.map((t) => el('option', { value: t }, `Team ${t}`)));
+  select.value = player.team || '';
+  select.disabled = player.id !== state.you && state.hostId !== state.you;
+  select.onchange = () => act('setTeam', { playerId: player.id, team: select.value || null });
+  return select;
+}
+
+$('teams-enabled').onchange = () => act('setTeamsEnabled', { enabled: $('teams-enabled').value === 'an' });
+
 function renderLobby() {
   $('lobby-code').textContent = state.code;
   const list = $('lobby-players');
@@ -196,10 +208,18 @@ function renderLobby() {
     dot.style.background = p.color;
     li.append(dot, el('span', {}, p.name + (p.id === state.you ? ' (du)' : '') + (p.connected ? '' : ' – getrennt')));
     if (p.id === state.hostId) li.append(el('span', { class: 'meta' }, '👑 Gastgeber'));
+    if (state.teamsEnabled) li.append(teamSelect(p));
     const kick = kickButton(p);
     if (kick) li.append(kick);
     return li;
   }));
+  const teamsSelect = $('teams-enabled');
+  teamsSelect.value = state.teamsEnabled ? 'an' : 'aus';
+  teamsSelect.disabled = state.hostId !== state.you;
+  $('teams-info').textContent = state.teamsEnabled
+    ? 'Jeder wählt sein Team selbst, der Gastgeber kann umsetzen. Zugreihenfolge abwechselnd zwischen den Teams, '
+      + 'Punkte werden im Team addiert (Ziel × Teamgröße), Bank 2:1 wenn du und ein Teammitglied je einen Hafen habt.'
+    : '';
   const isHost = state.hostId === state.you;
   const v = state.victory;
   fillSelect($('victory-mode'), state.victoryModes.map((m) => [m.id, m.name]));
@@ -358,12 +378,17 @@ function renderPlayers() {
     const dot = el('span', { class: 'dot' });
     dot.style.background = p.color;
     const status = p.removed ? ' – entfernt' : p.eliminated ? ' – 💀 besiegt' : p.connected ? '' : ' – getrennt';
-    li.append(dot, el('span', {}, `${p.id === state.hostId ? '👑 ' : ''}${p.name}${p.id === state.you ? ' (du)' : ''}${status}`));
+    const team = p.team ? `[${p.team}] ` : '';
+    li.append(dot, el('span', {}, `${team}${p.id === state.hostId ? '👑 ' : ''}${p.name}${p.id === state.you ? ' (du)' : ''}${status}`));
     li.append(el('span', { class: 'meta' }, `${p.points} Pkt · ${p.resourceCount} Rohst.${p.hasMarkt ? ' · ⚖️' : ''}`));
     const kick = kickButton(p);
     if (kick) li.append(kick);
     return li;
   }));
+  const scores = $('team-scores');
+  scores.classList.toggle('hidden', !state.teamsEnabled);
+  scores.replaceChildren(...state.teams.map((t) => el('div', { class: 'team-score' },
+    `Team ${t.id}: ${t.points}${state.victory.mode !== 'vernichtung' ? ` / ${t.target}` : ''} Punkte`)));
 }
 
 function me() {
@@ -469,7 +494,7 @@ function fillSelect(select, options) {
 
 function renderTrade() {
   const myTurn = state.currentPlayerId === state.you && state.phase === 'main' && state.hasRolled;
-  const rate = me().hasMarkt ? state.rates.markt : state.rates.bank;
+  const rate = me().bankRate;
   fillSelect($('bank-give'), RESOURCES.map((r) => [r, `${rate}× ${RESOURCE_LABEL[r]}`]));
   fillSelect($('bank-get'), RESOURCES.map((r) => [r, `1× ${RESOURCE_LABEL[r]}`]));
   $('bank-trade').disabled = !myTurn;
@@ -565,22 +590,23 @@ function renderVote() {
 }
 
 const FINISH_REASON = {
-  punkte: (w) => `${w.name} hat das Punkteziel erreicht.`,
-  vernichtung: (w) => `${w.name} hat alle Gegner besiegt.`,
-  runden: (w) => `Rundenlimit erreicht – ${w.name} hat die meisten Punkte.`,
-  abstimmung: (w) => `Per Abstimmung beendet – ${w.name} hat die meisten Punkte.`,
+  punkte: (w) => `${w} hat das Punkteziel erreicht.`,
+  vernichtung: (w) => `${w} hat alle Gegner besiegt.`,
+  runden: (w) => `Rundenlimit erreicht – ${w} hat die meisten Punkte.`,
+  abstimmung: (w) => `Per Abstimmung beendet – ${w} hat die meisten Punkte.`,
 };
 
 function renderResults() {
   const winner = state.results[0];
-  $('finish-reason').textContent = FINISH_REASON[state.finishReason] ? FINISH_REASON[state.finishReason](winner) : '';
+  const winnerLabel = winner.team ? `Team ${winner.team}` : winner.name;
+  $('finish-reason').textContent = FINISH_REASON[state.finishReason] ? FINISH_REASON[state.finishReason](winnerLabel) : '';
   $('results-list').replaceChildren(...state.results.map((r) => {
     const built = Object.values(r.stats.built).reduce((sum, n) => sum + n, 0);
     const details = [`${r.resources} Rohstoffe`, `${built} gebaut`, `${r.stats.trades} Tausch`];
     if (state.conquest) details.push(`${r.stats.conquered} erobert`, `${r.stats.lost} verloren`);
     const li = el('li', { class: r.removed ? 'offline' : '' });
     const status = r.removed ? ' – entfernt' : r.eliminated ? ' – besiegt' : '';
-    li.append(el('b', {}, `${r.name}: ${r.points} Punkte`), el('span', { class: 'muted' }, ` (${details.join(' · ')})${status}`));
+    li.append(el('b', {}, `${r.winner ? '🏆 ' : ''}${r.team ? `[${r.team}] ` : ''}${r.name}: ${r.points} Punkte`), el('span', { class: 'muted' }, ` (${details.join(' · ')})${status}`));
     return li;
   }));
 

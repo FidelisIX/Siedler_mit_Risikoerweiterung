@@ -16,20 +16,6 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 
 ## Offen
 
-### F-013: Voreingestellte Teams (z. B. 2 gegen 2)
-- **Gewünscht:** 2026-11-11, Simon
-- **Status:** Offene Fragen
-- **Beschreibung:** In der Lobby sollen feste Teams eingestellt werden können, z. B. 2 gegen 2.
-- **Offene Fragen:**
-  - Wer stellt die Teams ein: der Gastgeber, oder wählt jeder sein Team selbst? Auch ungleiche Teams (2 gegen 1)?
-  - Siegbedingung: Zählen beim Punkteziel die **Teampunkte zusammen**, oder gewinnt das Team eines Spielers, der das
-    Ziel allein erreicht? Ist ein Team erst besiegt, wenn alle Mitglieder besiegt sind?
-  - Eroberung: Dürfen Teammitglieder sich gegenseitig angreifen (vermutlich nein)? Dürfen sie Truppen auf Gebäude
-    des Partners verlegen oder über die Schiffe des Partners angreifen?
-  - Handel: günstiger Tausch unter Teammitgliedern? Sehen Teammitglieder gegenseitig ihre Rohstoffe?
-  - Zugreihenfolge: abwechselnd zwischen den Teams (A1, B1, A2, B2)?
-  - Statistik: Siege pro Team bzw. pro Spieler im Team?
-
 ### F-011: Eigene Gebäude „Dorf“ und „Stadt“?
 - **Gewünscht:** 2026-10-30, Simon (aus F-006)
 - **Status:** Offene Fragen
@@ -57,6 +43,23 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 ---
 
 ## Umgesetzt
+
+### F-013: Voreingestellte Teams (z. B. 2 gegen 2)
+- **Gewünscht:** 2026-11-11, Simon
+- **Status:** Umgesetzt
+- **Entscheidungen (Simon, 2026-11-11):** Jeder wählt sein Team selbst, der Gastgeber hat ein Veto. Teampunkte
+  werden addiert, das Punkteziel entsprechend verschoben. Ein Team ist besiegt, wenn alle Mitglieder besiegt sind.
+  Truppen dürfen auf Gebäude des Partners verlegt werden, Angriffe über dessen Schiffe sind erlaubt.
+  2:1-Tausch, wenn beide einen Hafen haben. Zugreihenfolge abwechselnd zwischen den Teams.
+- **Umsetzung:**
+  - Lobby: „Jeder für sich“ oder „Feste Teams“; bis zu 3 Teams (A, B, C), auch ungleich groß.
+  - Punkteziel des Teams = Ziel × Teamgröße (Annahme zu „entsprechend verschieben“).
+  - 2:1 gilt als **Banktausch** für beide Teammitglieder, sobald jeder von ihnen einen eigenen Hafen hat
+    (Annahme – „Tausch im Team“ untereinander ist ohnehin frei verhandelbar).
+  - Rohstoffe der Teammitglieder bleiben verdeckt (Frage nicht beantwortet, daher unverändert).
+  - Teammitglieder können sich nicht angreifen. Bauen geht weiter nur neben eigenen Gebäuden und Schiffen.
+  - Statistik: Alle Mitglieder des Siegerteams bekommen einen Sieg.
+  - Tests: `test/game.test.js` (Abschnitt Teams).
 
 ### F-012: Wählbare Siegbedingungen statt fester Rundenzahl
 - **Gewünscht:** 2026-11-11, Simon („weder Siedler noch Risiko haben Rundenbegrenzungen“)

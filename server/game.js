@@ -32,12 +32,13 @@ const TARGET_OPTIONS = [10, 12, 15, 20];
 const ROUND_LIMIT_OPTIONS = [0, 20, 30, 40]; // 0 = kein Rundenlimit („Kurzes Spiel“ sonst)
 const VOTE_FIRST_ROUND = 150; // ohne Rundenlimit: nach dieser Runde abstimmen, ob es weitergeht …
 const VOTE_INTERVAL = 25; // … und danach alle 25 Runden erneut
+const TEAMS = ['A', 'B', 'C'];
 const BANK_RATE = 3;
 const MARKT_RATE = 2;
 const LOG_LIMIT = 60;
 const LAND_PER_PLAYER = 5;
 const HOST_HANDOVER_MS = 15_000; // so lange darf ein getrennter Gastgeber zurückkommen
-const SNAPSHOT_VERSION = 2;
+const SNAPSHOT_VERSION = 3;
 const REAL_CLOCK = {
   now: () => Date.now(),
   setTimeout: (fn, ms) => {
@@ -124,6 +125,8 @@ class Game {
     this.vote = null; // laufende Abstimmung „Weiterspielen?“
     this.finishReason = null;
     this.winnerId = null;
+    this.winnerTeam = null;
+    this.teamsEnabled = false;
     this.mapChoice = { kind: 'random', name: MAP_OPTIONS[0].name };
     this.variant = 'klassisch';
     this.attacksLeft = 0;
@@ -159,6 +162,72 @@ class Game {
   // Noch im Spiel: weder entfernt noch besiegt.
   inGame(player) {
     return !player.removed && !player.eliminated;
+  }
+
+  // ---------- Teams ----------
+
+  // Ohne Teams ist jeder Spieler sein eigenes „Team“ – so gelten dieselben Regeln für beide Fälle.
+  teamOf(playerId) {
+    const player = this.players.find((p) => p.id === playerId);
+    return this.teamsEnabled && player ? `team:${player.team}` : playerId;
+  }
+
+  allies(a, b) {
+    return this.teamOf(a) === this.teamOf(b);
+  }
+
+  teamMembers(teamKey) {
+    return this.players.filter((p) => !p.removed && this.teamOf(p.id) === teamKey);
+  }
+
+  teamPoints(teamKey) {
+    return this.teamMembers(teamKey).reduce((sum, p) => sum + this.points(p.id), 0);
+  }
+
+  // Punkteziel wächst mit der Teamgröße: ein 2er-Team braucht das Doppelte.
+  teamTarget(teamKey) {
+    return this.victory.target * Math.max(1, this.teamMembers(teamKey).length);
+  }
+
+  teamLabel(teamKey) {
+    return teamKey.startsWith('team:') ? `Team ${teamKey.slice(5)}` : this.getPlayer(teamKey).name;
+  }
+
+  setTeamsEnabled(playerId, payload) {
+    if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
+    this.requireHost(playerId);
+    this.teamsEnabled = !!(payload && payload.enabled);
+    if (!this.teamsEnabled) for (const p of this.players) p.team = null;
+    this.addLog(this.teamsEnabled ? 'Teams sind an – jeder wählt sein Team.' : 'Teams sind aus.');
+  }
+
+  // Jeder wählt sein Team selbst; der Gastgeber kann jeden umsetzen (Veto).
+  setTeam(playerId, payload) {
+    if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
+    if (!this.teamsEnabled) throw new GameError('Teams sind nicht aktiviert.');
+    const targetId = (payload && payload.playerId) || playerId;
+    if (targetId !== playerId) this.requireHost(playerId);
+    const target = this.getPlayer(targetId);
+    const team = payload && payload.team;
+    if (team !== null && !TEAMS.includes(team)) throw new GameError('Unbekanntes Team.');
+    target.team = team;
+  }
+
+  // Abwechselnd zwischen den Teams: A1, B1, C1, A2, B2, …
+  teamTurnOrder() {
+    const byTeam = TEAMS.map((t) => this.players.filter((p) => p.team === t)).filter((list) => list.length);
+    const order = [];
+    for (let i = 0; order.length < this.players.length; i++) {
+      for (const list of byTeam) if (list[i]) order.push(list[i]);
+    }
+    return order;
+  }
+
+  // Bank 2:1 im Team, wenn man selbst und ein Teammitglied je einen Hafen haben.
+  hasTeamHarbor(playerId) {
+    if (!this.teamsEnabled) return false;
+    const owns = (id) => this.tiles.some((t) => t.building && t.building.owner === id && t.building.type === 'hafen');
+    return owns(playerId) && this.teamMembers(this.teamOf(playerId)).some((p) => p.id !== playerId && owns(p.id));
   }
 
   requireHost(playerId) {
@@ -261,6 +330,10 @@ class Game {
     return null;
   }
 
+  bankRate(playerId) {
+    return this.hasMarkt(playerId) || this.hasTeamHarbor(playerId) ? MARKT_RATE : BANK_RATE;
+  }
+
   hasMarkt(playerId) {
     return this.tiles.some((t) => t.building && t.building.owner === playerId && t.building.type === 'markt');
   }
@@ -284,7 +357,7 @@ class Game {
     }
     const usedColors = new Set(this.players.map((p) => p.color));
     const color = COLORS.find((c) => !usedColors.has(c));
-    this.players.push({ id: playerId, name, color, resources: emptyResources(), connected: true, removed: false, stats: emptyStats() });
+    this.players.push({ id: playerId, name, color, resources: emptyResources(), connected: true, removed: false, team: null, stats: emptyStats() });
     if (!this.hostId) this.hostId = playerId;
     this.addLog(`${name} ist beigetreten.`);
   }
@@ -392,8 +465,10 @@ class Game {
 
   victoryText() {
     const parts = [];
-    if (this.hasPointGoal()) parts.push(`${this.victory.target} Punkte`);
-    if (this.canEliminate()) parts.push('alle Gegner besiegen');
+    if (this.hasPointGoal()) {
+      parts.push(this.teamsEnabled ? `${this.victory.target} Punkte je Teammitglied (Teamsumme)` : `${this.victory.target} Punkte`);
+    }
+    if (this.canEliminate()) parts.push(this.teamsEnabled ? 'alle gegnerischen Teams besiegen' : 'alle Gegner besiegen');
     let text = parts.join(' oder ');
     if (this.victory.roundLimit) text += `, höchstens ${this.victory.roundLimit} Runden`;
     return text;
@@ -462,6 +537,11 @@ class Game {
     this.tiles = tiles;
     this.tileIndex = new Map(this.tiles.map((t) => [t.id, t]));
     this.dropRemovedPlayers();
+    if (this.teamsEnabled) {
+      if (this.players.some((p) => !p.team)) throw new GameError('Alle Spieler müssen ein Team wählen.');
+      if (new Set(this.players.map((p) => p.team)).size < 2) throw new GameError('Es braucht mindestens zwei Teams.');
+      this.players = this.teamTurnOrder();
+    }
     for (const p of this.players) {
       p.resources = { ...START_RESOURCES };
       p.stats = emptyStats();
@@ -470,7 +550,7 @@ class Game {
     Object.assign(this, {
       round: 0, currentIndex: 0, hasRolled: false, lastRoll: null, trade: null, lastBattle: null,
       results: null, recorded: false, startedAt: new Date(this.clock.now()).toISOString(),
-      vote: null, finishReason: null, winnerId: null,
+      vote: null, finishReason: null, winnerId: null, winnerTeam: null,
     });
     this.rematchVotes.clear();
     this.resetTurnLimits();
@@ -565,7 +645,7 @@ class Game {
     if (!RESOURCES.includes(give) || !RESOURCES.includes(get) || give === get) {
       throw new GameError('Ungültiger Tausch.');
     }
-    const rate = this.hasMarkt(playerId) ? MARKT_RATE : BANK_RATE;
+    const rate = this.bankRate(playerId);
     if (player.resources[give] < rate) throw new GameError(`Du brauchst ${rate} ${give}.`);
     player.resources[give] -= rate;
     player.resources[get] += 1;
@@ -622,8 +702,9 @@ class Game {
     this.resetTurnLimits();
     this.addLog(`${player.name} beendet den Zug.`);
     // Punkteziel: gewonnen hat, wer es am Ende des eigenen Zuges erreicht.
-    if (this.hasPointGoal() && this.points(player.id) >= this.victory.target) {
-      this.finish('punkte', player.id);
+    const team = this.teamOf(player.id);
+    if (this.hasPointGoal() && this.teamPoints(team) >= this.teamTarget(team)) {
+      this.finish('punkte', team);
       return;
     }
     this.advanceTurn();
@@ -730,7 +811,13 @@ class Game {
     return !!tile.building && tile.building.owner === playerId && tile.terrain !== 'wasser';
   }
 
-  // Landfelder, die von einem Feld aus erreichbar sind: direkte Nachbarn oder über eine Kette eigener Schiffe.
+  // Truppen dürfen auch auf Gebäude von Teammitgliedern verlegt werden.
+  isAllyGarrison(tile, playerId) {
+    return !!tile.building && tile.terrain !== 'wasser' && this.allies(tile.building.owner, playerId);
+  }
+
+  // Landfelder, die von einem Feld aus erreichbar sind: direkte Nachbarn oder über eine Kette eigener
+  // Schiffe bzw. Schiffe von Teammitgliedern.
   reachableFrom(source, playerId) {
     const result = [];
     const visited = new Set([source.id]);
@@ -741,7 +828,7 @@ class Game {
         if (visited.has(n.id)) continue;
         visited.add(n.id);
         if (n.terrain !== 'wasser') result.push(n);
-        else if (n.building && n.building.owner === playerId && n.building.type === 'schiff') queue.push(n);
+        else if (n.building && n.building.type === 'schiff' && this.allies(n.building.owner, playerId)) queue.push(n);
       }
     }
     return result;
@@ -752,14 +839,14 @@ class Game {
   }
 
   canAttack(source, target, playerId) {
-    return !!target.building && target.terrain !== 'wasser' && target.building.owner !== playerId
+    return !!target.building && target.terrain !== 'wasser' && !this.allies(target.building.owner, playerId)
       && (this.canEliminate() || this.landBuildingCount(target.building.owner) > 1)
       && !this.isShielded(target)
       && this.reachableFrom(source, playerId).includes(target);
   }
 
   canMove(source, target, playerId) {
-    return this.isGarrison(target, playerId) && target.troops < CONQUEST.maxGarrison
+    return this.isAllyGarrison(target, playerId) && target.troops < CONQUEST.maxGarrison
       && this.reachableFrom(source, playerId).includes(target);
   }
 
@@ -870,8 +957,8 @@ class Game {
     player.eliminated = true;
     if (this.trade && (this.trade.from === player.id || this.trade.to === player.id)) this.trade = null;
     this.addLog(`💀 ${player.name} ist besiegt.`);
-    const remaining = this.players.filter((p) => this.inGame(p));
-    if (remaining.length === 1) this.finish('vernichtung', remaining[0].id);
+    const remaining = new Set(this.players.filter((p) => this.inGame(p)).map((p) => this.teamOf(p.id)));
+    if (remaining.size === 1) this.finish('vernichtung', [...remaining][0]);
   }
 
   militaryOptions(playerId) {
@@ -915,32 +1002,44 @@ class Game {
   }
 
   // reason: 'punkte' | 'vernichtung' | 'runden' | 'abstimmung'
-  finish(reason, winnerId = null) {
+  // winnerTeam: Teamschlüssel (ohne Teams die Spieler-ID); fehlt er, gewinnt die höchste (Team-)Punktzahl.
+  finish(reason, winnerTeam = null) {
     this.phase = 'ended';
     this.trade = null;
     this.vote = null;
     this.rematchVotes.clear();
     this.finishReason = reason;
-    const rank = (r) => (r.id === winnerId ? 0 : r.removed ? 3 : r.eliminated ? 2 : 1);
+    if (!winnerTeam) winnerTeam = this.leadingTeam();
+    this.winnerTeam = winnerTeam;
+    const rank = (r) => (r.winner ? 0 : r.removed ? 3 : r.eliminated ? 2 : 1);
     this.results = this.players
       .map((p) => ({
         id: p.id, name: p.name, color: p.color, removed: p.removed, eliminated: !!p.eliminated,
+        team: this.teamsEnabled ? p.team : null, winner: !p.removed && this.teamOf(p.id) === winnerTeam,
         points: this.points(p.id), resources: total(p.resources), stats: p.stats,
       }))
       .sort((a, b) => rank(a) - rank(b) || b.points - a.points || b.resources - a.resources);
     this.winnerId = this.results[0].id;
-    const winner = this.results[0];
+    const points = this.teamPoints(winnerTeam);
     const why = {
-      punkte: `erreicht ${winner.points} Punkte`,
+      punkte: `erreicht ${points} Punkte`,
       vernichtung: 'hat alle Gegner besiegt',
-      runden: `liegt nach ${this.victory.roundLimit} Runden mit ${winner.points} Punkten vorn`,
-      abstimmung: `liegt bei Spielende mit ${winner.points} Punkten vorn`,
+      runden: `liegt nach ${this.victory.roundLimit} Runden mit ${points} Punkten vorn`,
+      abstimmung: `liegt bei Spielende mit ${points} Punkten vorn`,
     }[reason];
-    this.addLog(`Spielende! ${winner.name} ${why}.`);
+    this.addLog(`Spielende! ${this.teamLabel(winnerTeam)} ${why}.`);
     if (!this.recorded) {
       this.recorded = true;
       this.onFinished(this.gameRecord());
     }
+  }
+
+  // Bei Spielende nach Punkten: Team (bzw. Spieler) mit den meisten Punkten, das noch im Spiel ist.
+  leadingTeam() {
+    const teams = [...new Set(this.players.filter((p) => this.inGame(p)).map((p) => this.teamOf(p.id)))];
+    const resources = (team) => this.teamMembers(team).reduce((sum, p) => sum + total(p.resources), 0);
+    teams.sort((a, b) => this.teamPoints(b) - this.teamPoints(a) || resources(b) - resources(a));
+    return teams[0] || this.teamOf(this.players[0].id);
   }
 
   // Datensatz einer beendeten Partie für die Statistik.
@@ -955,8 +1054,11 @@ class Game {
       reason: this.finishReason,
       roundsPlayed: this.round,
       winner: this.results[0].name,
+      winners: this.results.filter((r) => r.winner).map((r) => r.name),
+      teams: this.teamsEnabled,
       players: this.results.map((r) => ({
-        name: r.name, points: r.points, resources: r.resources, removed: r.removed, eliminated: r.eliminated, stats: r.stats,
+        name: r.name, points: r.points, resources: r.resources, removed: r.removed, eliminated: r.eliminated,
+        team: r.team, stats: r.stats,
       })),
     };
   }
@@ -998,7 +1100,7 @@ class Game {
 
   snapshot() {
     const fields = [
-      'code', 'phase', 'players', 'hostId', 'tiles', 'round', 'victory', 'vote', 'finishReason', 'winnerId', 'mapChoice', 'variant',
+      'code', 'phase', 'players', 'hostId', 'tiles', 'round', 'victory', 'vote', 'finishReason', 'winnerId', 'winnerTeam', 'teamsEnabled', 'mapChoice', 'variant',
       'attacksLeft', 'movesLeft', 'lastBattle', 'currentIndex', 'setupQueue', 'hasRolled', 'lastRoll',
       'trade', 'nextTradeId', 'log', 'results', 'startedAt', 'recorded',
     ];
@@ -1044,6 +1146,14 @@ class Game {
       },
       finishReason: this.finishReason,
       winnerId: this.winnerId,
+      teamsEnabled: this.teamsEnabled,
+      teamOptions: TEAMS,
+      teams: this.teamsEnabled ? TEAMS.map((t) => `team:${t}`).filter((key) => this.teamMembers(key).length).map((key) => ({
+        id: key.slice(5),
+        points: this.teamPoints(key),
+        target: this.teamTarget(key),
+        members: this.teamMembers(key).map((p) => p.id),
+      })) : [],
       mapOptions: MAP_OPTIONS,
       map: { kind: this.mapChoice.kind, id: this.mapChoice.id || null, name: this.mapChoice.name },
       mapPreview: this.phase === 'lobby' ? this.mapPreview() : null,
@@ -1074,6 +1184,8 @@ class Game {
         resourceCount: total(p.resources),
         resources: p.id === viewerId ? p.resources : null,
         hasMarkt: this.hasMarkt(p.id),
+        team: p.team || null,
+        bankRate: this.bankRate(p.id),
       })),
       tiles: this.tiles,
       validTiles: this.validTiles(viewerId),

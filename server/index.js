@@ -19,7 +19,7 @@ const ACTIONS = new Set([
   'setVictory', 'setMap', 'start', 'placeStart', 'roll', 'build',
   'bankTrade', 'proposeTrade', 'respondTrade', 'cancelTrade', 'endTurn', 'forceSkip',
   'setVariant', 'recruit', 'moveTroops', 'attack',
-  'voteRematch', 'backToLobby', 'castVote',
+  'voteRematch', 'backToLobby', 'castVote', 'setTeamsEnabled', 'setTeam',
 ]);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

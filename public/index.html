@@ -62,6 +62,13 @@
       <label>Spielvariante
         <select id="variant"></select>
       </label>
+      <label>Teams
+        <select id="teams-enabled">
+          <option value="aus">Jeder für sich</option>
+          <option value="an">Feste Teams (z. B. 2 gegen 2)</option>
+        </select>
+      </label>
+      <p id="teams-info" class="muted small-text"></p>
       <label>Siegbedingung
         <select id="victory-mode"></select>
       </label>
@@ -94,6 +101,7 @@
       <aside class="sidebar">
         <div class="panel">
           <h3>Spieler</h3>
+          <div id="team-scores" class="team-scores hidden"></div>
           <ul id="players" class="player-list"></ul>
         </div>
         <div class="panel">

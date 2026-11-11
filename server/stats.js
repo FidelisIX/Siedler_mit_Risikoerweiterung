@@ -10,6 +10,7 @@ const builtCount = (stats) => Object.values((stats && stats.built) || {}).reduce
 
 function winnersOf(game) {
   // Seit den wählbaren Siegbedingungen steht der Sieger im Datensatz (z. B. bei Vernichtung nicht nach Punkten).
+  if (game.winners) return game.winners.map(playerKey); // Teams: alle Mitglieder des Siegerteams
   if (game.winner) return [playerKey(game.winner)];
   const scored = game.players.filter((p) => !p.removed);
   if (scored.length < 2) return [];

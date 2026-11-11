@@ -663,3 +663,134 @@ test('Räume: Sicherung und Wiederherstellung mitten im Spiel', () => {
   assert.equal(restored.currentPlayer().id, 'p1');
   assert.equal(Game.restore({ ...snap, version: 99 }), null);
 });
+
+// ---------- Teams ----------
+
+function teamGame(teams, variant = 'klassisch') {
+  const game = newGame(teams.length);
+  if (variant !== 'klassisch') game.setVariant('p0', { variant });
+  game.setTeamsEnabled('p0', { enabled: true });
+  teams.forEach((team, i) => game.setTeam(`p${i}`, { team }));
+  return game;
+}
+
+test('Teams: jeder wählt selbst, Gastgeber hat Veto, Start nur mit gültigen Teams', () => {
+  const game = newGame(4);
+  assert.throws(() => game.setTeam('p1', { team: 'A' }), /nicht aktiviert/);
+  assert.throws(() => game.setTeamsEnabled('p1', { enabled: true }), /Gastgeber/);
+  game.setTeamsEnabled('p0', { enabled: true });
+  game.setTeam('p1', { team: 'A' });
+  assert.throws(() => game.setTeam('p1', { playerId: 'p2', team: 'A' }), /Gastgeber/);
+  assert.throws(() => game.setTeam('p1', { team: 'Z' }), /Unbekanntes Team/);
+  game.setTeam('p0', { playerId: 'p1', team: 'B' }); // Veto des Gastgebers
+  assert.equal(game.getPlayer('p1').team, 'B');
+  assert.throws(() => game.start('p0'), /Team wählen/);
+  for (const id of ['p0', 'p2', 'p3']) game.setTeam(id, { team: 'B' });
+  assert.throws(() => game.start('p0'), /zwei Teams/);
+  game.setTeamsEnabled('p0', { enabled: false });
+  assert.ok(game.players.every((p) => p.team === null));
+});
+
+test('Teams: Zugreihenfolge abwechselnd, auch bei ungleichen Teams', () => {
+  const game = teamGame(['A', 'A', 'B', 'B']);
+  game.start('p0');
+  assert.deepEqual(game.players.map((p) => p.id), ['p0', 'p2', 'p1', 'p3']);
+  const uneven = teamGame(['A', 'A', 'A', 'B']);
+  uneven.start('p0');
+  assert.deepEqual(uneven.players.map((p) => p.team), ['A', 'B', 'A', 'A']);
+});
+
+test('Teams: Punkte werden addiert, Ziel wächst mit der Teamgröße', () => {
+  const game = teamGame(['A', 'B', 'A']); // A hat 2 Mitglieder, B eines
+  game.setVictory('p0', { target: 10, roundLimit: 0 });
+  game.start('p0');
+  finishSetup(game);
+  assert.equal(game.teamTarget('team:A'), 20);
+  assert.equal(game.teamTarget('team:B'), 10);
+  const free = game.tiles.filter((t) => !t.building && game.isPlayable(t));
+  // Team A: 2 Start-Siedlungen je Spieler (4) + 5 Monumente (15) = 19 → noch nicht am Ziel
+  for (const t of free.slice(0, 5)) t.building = { type: 'monument', owner: 'p2' };
+  const current = game.currentPlayer();
+  game.roll(current.id);
+  game.endTurn(current.id);
+  assert.equal(game.phase, 'main');
+  free[5].building = { type: 'siedlung', owner: 'p0' }; // 20 Punkte
+  while (game.teamOf(game.currentPlayer().id) !== 'team:A') {
+    game.roll(game.currentPlayer().id);
+    game.endTurn(game.currentPlayer().id);
+  }
+  const a = game.currentPlayer();
+  game.roll(a.id);
+  game.endTurn(a.id);
+  assert.equal(game.phase, 'ended');
+  assert.equal(game.winnerTeam, 'team:A');
+  const record = game.gameRecord();
+  assert.deepEqual(record.winners.sort(), ['Spieler 0', 'Spieler 2']);
+  assert.ok(record.players.every((p) => p.team));
+});
+
+test('Teams: keine Angriffe auf Partner, Verlegen zum Partner, Angriff über Partner-Schiffe', () => {
+  const tiles = [
+    { q: 0, r: 0, terrain: 'acker' }, { q: 1, r: 0, terrain: 'acker' }, { q: 2, r: 0, terrain: 'wasser' },
+    { q: 3, r: 0, terrain: 'acker' },
+    ...Array.from({ length: 16 }, (_, i) => ({ q: i - 4, r: 4, terrain: 'acker' })),
+  ];
+  const game = newGame(3, seeded(2), { kind: 'custom', map: { name: 'Bucht', tiles } });
+  game.setVariant('p0', { variant: 'eroberung' });
+  game.setTeamsEnabled('p0', { enabled: true });
+  game.setTeam('p0', { team: 'A' });
+  game.setTeam('p1', { team: 'A' });
+  game.setTeam('p2', { team: 'B' });
+  game.start('p0');
+  for (const t of game.tiles) { t.building = null; t.troops = 0; }
+  Object.assign(game, { phase: 'main', round: 3, setupQueue: [], hasRolled: true });
+  game.currentIndex = game.players.findIndex((p) => p.id === 'p0');
+  game.resetTurnLimits();
+  game.getPlayer('p0').resources = { holz: 9, stein: 9, nahrung: 9, erz: 9 };
+  const put = (id, type, owner, troops = 0) => {
+    Object.assign(game.getTile(id), { building: { type, owner }, troops });
+  };
+  put('0,0', 'siedlung', 'p0', 4);
+  put('1,0', 'hafen', 'p1', 0);
+  put('2,0', 'schiff', 'p1');
+  put('3,0', 'siedlung', 'p2', 0);
+  put('-4,4', 'siedlung', 'p2', 0);
+  const from = game.getTile('0,0');
+  assert.equal(game.canAttack(from, game.getTile('1,0'), 'p0'), false, 'Partner nicht angreifbar');
+  assert.equal(game.canMove(from, game.getTile('1,0'), 'p0'), true, 'Verlegen zum Partner');
+  game.moveTroops('p0', { from: '0,0', to: '1,0', count: 2 });
+  assert.equal(game.getTile('1,0').troops, 2);
+  assert.equal(game.canAttack(game.getTile('1,0'), game.getTile('3,0'), 'p0'), true, 'über das Schiff des Partners');
+});
+
+test('Teams: Bank 2:1, wenn man selbst und ein Teammitglied je einen Hafen haben', () => {
+  const game = teamGame(['A', 'A', 'B']);
+  game.start('p0');
+  finishSetup(game);
+  const coast = game.tiles.filter((t) => !t.building && game.isPlayable(t));
+  assert.equal(game.bankRate('p0'), 3);
+  coast[0].building = { type: 'hafen', owner: 'p0' };
+  assert.equal(game.bankRate('p0'), 3, 'nur ein Hafen im Team');
+  coast[1].building = { type: 'hafen', owner: 'p2' }; // Gegner zählt nicht
+  assert.equal(game.bankRate('p0'), 3);
+  coast[2].building = { type: 'hafen', owner: 'p1' };
+  assert.equal(game.bankRate('p0'), 2);
+  assert.equal(game.bankRate('p1'), 2);
+  assert.equal(game.bankRate('p2'), 3);
+});
+
+test('Teams: ein Team ist erst besiegt, wenn alle Mitglieder besiegt sind', () => {
+  const { game, put } = conquestGame();
+  game.players.push({ id: 'p2', name: 'Dritter', color: '#000', resources: { holz: 0, stein: 0, nahrung: 0, erz: 0 },
+    connected: true, removed: false, team: 'B', stats: { built: {}, recruited: 0, attacks: 0, attacksWon: 0, defenses: 0, defensesWon: 0, conquered: 0, lost: 0, trades: 0 } });
+  game.teamsEnabled = true;
+  game.getPlayer('p0').team = 'A';
+  game.getPlayer('p1').team = 'B';
+  put('2,0', 'siedlung', 'p0', 6);
+  put('3,0', 'siedlung', 'p1', 0);
+  put('7,0', 'siedlung', 'p2', 0);
+  game.rng = scripted([6, 1]);
+  game.attack('p0', { from: '2,0', to: '3,0', count: 6 });
+  assert.equal(game.getPlayer('p1').eliminated, true);
+  assert.equal(game.phase, 'main', 'Teampartner p2 ist noch im Spiel');
+});

@@ -58,6 +58,21 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
 - **Zweiter Tab:** Pro Spieler ist nur eine Verbindung aktiv. Wer das Spiel in einem weiteren Tab öffnet,
   spielt dort weiter; der alte Tab zeigt „In einem anderen Tab geöffnet“.
 
+## Teams
+
+In der Lobby stellt der Gastgeber **„Feste Teams“** ein (bis zu 3 Teams: A, B, C; auch ungleich, z. B. 2 gegen 1).
+
+- **Teamwahl:** Jeder wählt sein Team selbst; der Gastgeber kann jeden umsetzen (Veto). Gestartet wird erst,
+  wenn alle ein Team haben und es mindestens zwei Teams gibt.
+- **Zugreihenfolge:** abwechselnd zwischen den Teams (A1, B1, A2, B2 …).
+- **Punkteziel:** Die Punkte eines Teams werden addiert; das Ziel wird mit der Teamgröße multipliziert
+  (z. B. 12 Punkte → 24 für ein 2er-Team, 12 für einen Einzelspieler). Gewonnen ist am Ende des Zuges
+  eines Teammitglieds.
+- **Besiegt** ist ein Team erst, wenn alle Mitglieder besiegt sind.
+- **Eroberung:** Teammitglieder können sich nicht angreifen, dürfen Truppen auf Gebäude des Partners verlegen und
+  über dessen Schiffe angreifen.
+- **Handel:** Banktausch 2:1, wenn man selbst und ein Teammitglied je einen Hafen haben.
+
 ## Spielvariante „Eroberung“ (Truppen & Kämpfe)
 
 Der Gastgeber wählt in der Lobby die Variante **Klassisch** oder **Eroberung**. In der Eroberung gilt zusätzlich:
