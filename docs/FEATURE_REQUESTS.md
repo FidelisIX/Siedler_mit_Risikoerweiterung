@@ -16,6 +16,20 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 
 ## Offen
 
+### F-013: Voreingestellte Teams (z. B. 2 gegen 2)
+- **Gewünscht:** 2026-11-11, Simon
+- **Status:** Offene Fragen
+- **Beschreibung:** In der Lobby sollen feste Teams eingestellt werden können, z. B. 2 gegen 2.
+- **Offene Fragen:**
+  - Wer stellt die Teams ein: der Gastgeber, oder wählt jeder sein Team selbst? Auch ungleiche Teams (2 gegen 1)?
+  - Siegbedingung: Zählen beim Punkteziel die **Teampunkte zusammen**, oder gewinnt das Team eines Spielers, der das
+    Ziel allein erreicht? Ist ein Team erst besiegt, wenn alle Mitglieder besiegt sind?
+  - Eroberung: Dürfen Teammitglieder sich gegenseitig angreifen (vermutlich nein)? Dürfen sie Truppen auf Gebäude
+    des Partners verlegen oder über die Schiffe des Partners angreifen?
+  - Handel: günstiger Tausch unter Teammitgliedern? Sehen Teammitglieder gegenseitig ihre Rohstoffe?
+  - Zugreihenfolge: abwechselnd zwischen den Teams (A1, B1, A2, B2)?
+  - Statistik: Siege pro Team bzw. pro Spieler im Team?
+
 ### F-011: Eigene Gebäude „Dorf“ und „Stadt“?
 - **Gewünscht:** 2026-10-30, Simon (aus F-006)
 - **Status:** Offene Fragen
@@ -43,6 +57,19 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 ---
 
 ## Umgesetzt
+
+### F-012: Wählbare Siegbedingungen statt fester Rundenzahl
+- **Gewünscht:** 2026-11-11, Simon („weder Siedler noch Risiko haben Rundenbegrenzungen“)
+- **Status:** Umgesetzt
+- **Umsetzung:**
+  - Klassisch: Punkteziel 10/12/15/20, gewonnen am Ende des eigenen Zuges.
+  - Eroberung: „Punkteziel oder alle Gegner besiegen“ oder „Nur alle Gegner besiegen“. Wer kein Landgebäude mehr
+    hat, ist besiegt (der frühere Schutz des letzten Gebäudes entfällt).
+  - Rundenlimit nur noch optional (20/30/40 Runden, zusammen mit dem Punkteziel; danach zählen die Punkte).
+  - Ohne Limit: Abstimmung „Weiterspielen?“ nach 150 Runden, danach alle 25 Runden; Mehrheit der verbundenen
+    Spieler für Beenden beendet das Spiel nach Punkten, Gleichstand = weiter.
+  - Statistik speichert Siegbedingung, Grund des Spielendes, gespielte Runden und Sieger.
+  - Tests: `test/game.test.js`.
 
 ### F-007: Raum-Features, Raumsicherung und Statistik wie bei Ortsraten
 - **Gewünscht:** 2026-10-30, Simon

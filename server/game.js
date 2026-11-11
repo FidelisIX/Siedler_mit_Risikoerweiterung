@@ -22,13 +22,22 @@ const START_RESOURCES = { holz: 2, stein: 2, nahrung: 2, erz: 1 };
 const COLORS = ['#e8590c', '#1c7ed6', '#2f9e44', '#f59f00', '#ae3ec9', '#0ca678'];
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 6;
-const ROUND_OPTIONS = [8, 12, 16];
+// Siegbedingungen: Punkteziel (beide Varianten) oder – nur in der Eroberung – Vernichtung.
+const VICTORY_MODES = [
+  { id: 'punkte', name: 'Punkteziel', variants: ['klassisch'] },
+  { id: 'punkte_vernichtung', name: 'Punkteziel oder alle Gegner besiegen', variants: ['eroberung'] },
+  { id: 'vernichtung', name: 'Nur alle Gegner besiegen', variants: ['eroberung'] },
+];
+const TARGET_OPTIONS = [10, 12, 15, 20];
+const ROUND_LIMIT_OPTIONS = [0, 20, 30, 40]; // 0 = kein Rundenlimit („Kurzes Spiel“ sonst)
+const VOTE_FIRST_ROUND = 150; // ohne Rundenlimit: nach dieser Runde abstimmen, ob es weitergeht …
+const VOTE_INTERVAL = 25; // … und danach alle 25 Runden erneut
 const BANK_RATE = 3;
 const MARKT_RATE = 2;
 const LOG_LIMIT = 60;
 const LAND_PER_PLAYER = 5;
 const HOST_HANDOVER_MS = 15_000; // so lange darf ein getrennter Gastgeber zurückkommen
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 2;
 const REAL_CLOCK = {
   now: () => Date.now(),
   setTimeout: (fn, ms) => {
@@ -111,7 +120,10 @@ class Game {
     this.tiles = [];
     this.tileIndex = new Map();
     this.round = 0;
-    this.maxRounds = 12;
+    this.victory = { mode: 'punkte', target: 12, roundLimit: 0 };
+    this.vote = null; // laufende Abstimmung „Weiterspielen?“
+    this.finishReason = null;
+    this.winnerId = null;
     this.mapChoice = { kind: 'random', name: MAP_OPTIONS[0].name };
     this.variant = 'klassisch';
     this.attacksLeft = 0;
@@ -144,6 +156,11 @@ class Game {
     return this.players.filter((p) => !p.removed);
   }
 
+  // Noch im Spiel: weder entfernt noch besiegt.
+  inGame(player) {
+    return !player.removed && !player.eliminated;
+  }
+
   requireHost(playerId) {
     if (playerId !== this.hostId) throw new GameError('Nur der Gastgeber kann das.');
   }
@@ -156,6 +173,7 @@ class Game {
 
   requireTurn(playerId, phase) {
     if (this.phase !== phase) throw new GameError('Diese Aktion ist gerade nicht möglich.');
+    if (this.vote) throw new GameError('Erst abstimmen, ob es weitergeht.');
     const current = this.currentPlayer();
     if (!current || current.id !== playerId) throw new GameError('Du bist nicht am Zug.');
     return current;
@@ -290,6 +308,7 @@ class Game {
     } else {
       if (this.hostId === playerId) this.scheduleHostHandover();
       if (this.phase === 'ended') this.maybeRematch();
+      this.resolveVote();
     }
   }
 
@@ -340,14 +359,44 @@ class Game {
       this.advanceTurn();
     }
     if (this.phase === 'ended') this.maybeRematch();
+    this.resolveVote();
   }
 
-  setRounds(playerId, payload) {
+  setVictory(playerId, payload) {
     if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
     this.requireHost(playerId);
-    const rounds = Number(payload && payload.rounds);
-    if (!ROUND_OPTIONS.includes(rounds)) throw new GameError('Ungültige Rundenzahl.');
-    this.maxRounds = rounds;
+    const next = { ...this.victory };
+    if (payload.mode !== undefined) {
+      const mode = VICTORY_MODES.find((m) => m.id === payload.mode);
+      if (!mode || !mode.variants.includes(this.variant)) throw new GameError('Diese Siegbedingung passt nicht zur Spielvariante.');
+      next.mode = mode.id;
+    }
+    if (payload.target !== undefined) {
+      if (!TARGET_OPTIONS.includes(Number(payload.target))) throw new GameError('Ungültiges Punkteziel.');
+      next.target = Number(payload.target);
+    }
+    if (payload.roundLimit !== undefined) {
+      if (!ROUND_LIMIT_OPTIONS.includes(Number(payload.roundLimit))) throw new GameError('Ungültiges Rundenlimit.');
+      next.roundLimit = Number(payload.roundLimit);
+    }
+    this.victory = next;
+  }
+
+  hasPointGoal() {
+    return this.victory.mode !== 'vernichtung';
+  }
+
+  canEliminate() {
+    return this.victory.mode !== 'punkte';
+  }
+
+  victoryText() {
+    const parts = [];
+    if (this.hasPointGoal()) parts.push(`${this.victory.target} Punkte`);
+    if (this.canEliminate()) parts.push('alle Gegner besiegen');
+    let text = parts.join(' oder ');
+    if (this.victory.roundLimit) text += `, höchstens ${this.victory.roundLimit} Runden`;
+    return text;
   }
 
   setMap(playerId, payload) {
@@ -376,6 +425,9 @@ class Game {
     const variant = VARIANTS.find((v) => v.id === (payload && payload.variant));
     if (!variant) throw new GameError('Unbekannte Spielvariante.');
     this.variant = variant.id;
+    if (!VICTORY_MODES.find((m) => m.id === this.victory.mode).variants.includes(this.variant)) {
+      this.victory = { ...this.victory, mode: this.variant === 'eroberung' ? 'punkte_vernichtung' : 'punkte' };
+    }
     this.addLog(`Spielvariante: ${variant.name}.`);
   }
 
@@ -413,10 +465,12 @@ class Game {
     for (const p of this.players) {
       p.resources = { ...START_RESOURCES };
       p.stats = emptyStats();
+      p.eliminated = false;
     }
     Object.assign(this, {
       round: 0, currentIndex: 0, hasRolled: false, lastRoll: null, trade: null, lastBattle: null,
       results: null, recorded: false, startedAt: new Date(this.clock.now()).toISOString(),
+      vote: null, finishReason: null, winnerId: null,
     });
     this.rematchVotes.clear();
     this.resetTurnLimits();
@@ -424,7 +478,7 @@ class Game {
     const order = this.players.map((_, i) => i);
     this.setupQueue = [...order, ...order.slice().reverse()];
     this.phase = 'setup';
-    this.addLog(`Das Spiel beginnt (${this.maxRounds} Runden). Jeder setzt zwei Start-Siedlungen.`);
+    this.addLog(`Das Spiel beginnt. Ziel: ${this.victoryText()}. Jeder setzt zwei Start-Siedlungen.`);
   }
 
   // ---------- Aufbauphase ----------
@@ -567,10 +621,15 @@ class Game {
     this.hasRolled = false;
     this.resetTurnLimits();
     this.addLog(`${player.name} beendet den Zug.`);
+    // Punkteziel: gewonnen hat, wer es am Ende des eigenen Zuges erreicht.
+    if (this.hasPointGoal() && this.points(player.id) >= this.victory.target) {
+      this.finish('punkte', player.id);
+      return;
+    }
     this.advanceTurn();
   }
 
-  // Zum nächsten nicht entfernten Spieler; nach dem letzten beginnt eine neue Runde.
+  // Zum nächsten Spieler, der noch im Spiel ist; nach dem letzten beginnt eine neue Runde.
   advanceTurn() {
     this.trade = null;
     for (let step = 0; step < this.players.length; step++) {
@@ -578,15 +637,62 @@ class Game {
       if (this.currentIndex >= this.players.length) {
         this.currentIndex = 0;
         this.round++;
-        if (this.round > this.maxRounds) {
-          this.finish();
+        if (this.victory.roundLimit && this.round > this.victory.roundLimit) {
+          this.finish('runden');
           return;
         }
-        this.addLog(`Runde ${this.round} von ${this.maxRounds} beginnt.`);
+        this.addLog(this.victory.roundLimit
+          ? `Runde ${this.round} von ${this.victory.roundLimit} beginnt.`
+          : `Runde ${this.round} beginnt.`);
+        if (this.isVoteRound(this.round)) this.startVote();
       }
-      if (!this.players[this.currentIndex].removed) break;
+      if (this.inGame(this.players[this.currentIndex])) break;
     }
     this.addLog(`${this.currentPlayer().name} ist am Zug.`);
+  }
+
+  // ---------- Abstimmung „Weiterspielen?“ (nur ohne Rundenlimit) ----------
+
+  isVoteRound(round) {
+    if (this.victory.roundLimit) return false;
+    const after = round - 1; // abgeschlossene Runden
+    return after >= VOTE_FIRST_ROUND && (after - VOTE_FIRST_ROUND) % VOTE_INTERVAL === 0;
+  }
+
+  startVote() {
+    this.vote = { afterRound: this.round - 1, votes: {} };
+    this.addLog(`${this.vote.afterRound} Runden gespielt – Abstimmung: weiterspielen oder beenden?`);
+  }
+
+  voters() {
+    return this.players.filter((p) => this.inGame(p) && p.connected);
+  }
+
+  castVote(playerId, payload) {
+    if (!this.vote) throw new GameError('Es läuft keine Abstimmung.');
+    const player = this.getPlayer(playerId);
+    if (!this.inGame(player)) throw new GameError('Du bist nicht mehr im Spiel.');
+    const choice = payload && payload.choice;
+    if (choice !== 'weiter' && choice !== 'ende') throw new GameError('Ungültige Stimme.');
+    this.vote.votes[playerId] = choice;
+    this.resolveVote();
+  }
+
+  // Entschieden, sobald alle verbundenen Spieler abgestimmt haben: Mehrheit „beenden“ beendet
+  // das Spiel nach Punkten, sonst (auch bei Gleichstand) geht es weiter.
+  resolveVote() {
+    if (!this.vote) return;
+    const voters = this.voters();
+    if (voters.some((p) => !this.vote.votes[p.id])) return;
+    const end = voters.filter((p) => this.vote.votes[p.id] === 'ende').length;
+    const goOn = voters.length - end;
+    this.vote = null;
+    if (end > goOn) {
+      this.addLog(`Abstimmung: ${end} zu ${goOn} für Beenden.`);
+      this.finish('abstimmung');
+    } else {
+      this.addLog(`Abstimmung: ${goOn} zu ${end} – es geht weiter.`);
+    }
   }
 
   // ---------- Eroberungs-Variante ----------
@@ -647,7 +753,7 @@ class Game {
 
   canAttack(source, target, playerId) {
     return !!target.building && target.terrain !== 'wasser' && target.building.owner !== playerId
-      && this.landBuildingCount(target.building.owner) > 1
+      && (this.canEliminate() || this.landBuildingCount(target.building.owner) > 1)
       && !this.isShielded(target)
       && this.reachableFrom(source, playerId).includes(target);
   }
@@ -706,7 +812,7 @@ class Game {
     const { source, count } = this.requireSource(payload, playerId);
     const target = this.getTile(payload.to);
     if (!this.canAttack(source, target, playerId)) {
-      throw new GameError('Dieses Ziel kann nicht angegriffen werden (Reichweite, eigenes oder letztes Gebäude).');
+      throw new GameError('Dieses Ziel kann nicht angegriffen werden (Reichweite, eigenes oder geschütztes Gebäude).');
     }
     if (!canAfford(player.resources, CONQUEST.attackCost)) throw new GameError('Nicht genug Rohstoffe für den Angriff.');
     for (const [res, n] of Object.entries(CONQUEST.attackCost)) player.resources[res] -= n;
@@ -755,6 +861,17 @@ class Game {
     this.addLog(attackerWins
       ? `⚔️ ${player.name} erobert ${defender.name}s ${buildingName} (${attackTotal} gegen ${defenseTotal}).`
       : `🛡️ ${defender.name} wehrt den Angriff von ${player.name} ab (${defenseTotal} gegen ${attackTotal}).`);
+    if (attackerWins) this.checkElimination(defender);
+  }
+
+  // Wer kein Landgebäude mehr hat, ist besiegt; bleibt nur einer übrig, hat er gewonnen.
+  checkElimination(player) {
+    if (!this.canEliminate() || this.landBuildingCount(player.id) > 0) return;
+    player.eliminated = true;
+    if (this.trade && (this.trade.from === player.id || this.trade.to === player.id)) this.trade = null;
+    this.addLog(`💀 ${player.name} ist besiegt.`);
+    const remaining = this.players.filter((p) => this.inGame(p));
+    if (remaining.length === 1) this.finish('vernichtung', remaining[0].id);
   }
 
   militaryOptions(playerId) {
@@ -797,17 +914,29 @@ class Game {
     }
   }
 
-  finish() {
+  // reason: 'punkte' | 'vernichtung' | 'runden' | 'abstimmung'
+  finish(reason, winnerId = null) {
     this.phase = 'ended';
     this.trade = null;
+    this.vote = null;
     this.rematchVotes.clear();
+    this.finishReason = reason;
+    const rank = (r) => (r.id === winnerId ? 0 : r.removed ? 3 : r.eliminated ? 2 : 1);
     this.results = this.players
       .map((p) => ({
-        id: p.id, name: p.name, color: p.color, removed: p.removed,
+        id: p.id, name: p.name, color: p.color, removed: p.removed, eliminated: !!p.eliminated,
         points: this.points(p.id), resources: total(p.resources), stats: p.stats,
       }))
-      .sort((a, b) => a.removed - b.removed || b.points - a.points || b.resources - a.resources);
-    this.addLog(`Spielende! ${this.results[0].name} gewinnt mit ${this.results[0].points} Punkten.`);
+      .sort((a, b) => rank(a) - rank(b) || b.points - a.points || b.resources - a.resources);
+    this.winnerId = this.results[0].id;
+    const winner = this.results[0];
+    const why = {
+      punkte: `erreicht ${winner.points} Punkte`,
+      vernichtung: 'hat alle Gegner besiegt',
+      runden: `liegt nach ${this.victory.roundLimit} Runden mit ${winner.points} Punkten vorn`,
+      abstimmung: `liegt bei Spielende mit ${winner.points} Punkten vorn`,
+    }[reason];
+    this.addLog(`Spielende! ${winner.name} ${why}.`);
     if (!this.recorded) {
       this.recorded = true;
       this.onFinished(this.gameRecord());
@@ -822,9 +951,12 @@ class Game {
       endedAt: new Date(this.clock.now()).toISOString(),
       variant: this.variant,
       map: { kind: this.mapChoice.kind, name: this.mapChoice.name },
-      rounds: this.maxRounds,
+      victory: { ...this.victory },
+      reason: this.finishReason,
+      roundsPlayed: this.round,
+      winner: this.results[0].name,
       players: this.results.map((r) => ({
-        name: r.name, points: r.points, resources: r.resources, removed: r.removed, stats: r.stats,
+        name: r.name, points: r.points, resources: r.resources, removed: r.removed, eliminated: r.eliminated, stats: r.stats,
       })),
     };
   }
@@ -866,7 +998,7 @@ class Game {
 
   snapshot() {
     const fields = [
-      'code', 'phase', 'players', 'hostId', 'tiles', 'round', 'maxRounds', 'mapChoice', 'variant',
+      'code', 'phase', 'players', 'hostId', 'tiles', 'round', 'victory', 'vote', 'finishReason', 'winnerId', 'mapChoice', 'variant',
       'attacksLeft', 'movesLeft', 'lastBattle', 'currentIndex', 'setupQueue', 'hasRolled', 'lastRoll',
       'trade', 'nextTradeId', 'log', 'results', 'startedAt', 'recorded',
     ];
@@ -899,8 +1031,19 @@ class Game {
       hostId: this.hostId,
       you: viewerId,
       round: this.round,
-      maxRounds: this.maxRounds,
-      roundOptions: ROUND_OPTIONS,
+      victory: this.victory,
+      victoryText: this.victoryText(),
+      victoryModes: VICTORY_MODES.filter((m) => m.variants.includes(this.variant)).map(({ id, name }) => ({ id, name })),
+      targetOptions: TARGET_OPTIONS,
+      roundLimitOptions: ROUND_LIMIT_OPTIONS,
+      vote: this.vote && {
+        afterRound: this.vote.afterRound,
+        voted: Object.keys(this.vote.votes),
+        yours: this.vote.votes[viewerId] || null,
+        voters: this.voters().map((p) => p.id),
+      },
+      finishReason: this.finishReason,
+      winnerId: this.winnerId,
       mapOptions: MAP_OPTIONS,
       map: { kind: this.mapChoice.kind, id: this.mapChoice.id || null, name: this.mapChoice.name },
       mapPreview: this.phase === 'lobby' ? this.mapPreview() : null,
@@ -926,6 +1069,7 @@ class Game {
         color: p.color,
         connected: p.connected,
         removed: p.removed,
+        eliminated: !!p.eliminated,
         points: this.points(p.id),
         resourceCount: total(p.resources),
         resources: p.id === viewerId ? p.resources : null,

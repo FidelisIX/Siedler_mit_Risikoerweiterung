@@ -16,10 +16,10 @@ const RESTORE_WAIT_MS = 15_000; // so lange wartet ein Beitritt auf die Sicherun
 const SHUTDOWN_SAVE_TIMEOUT_MS = 8_000;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACTIONS = new Set([
-  'setRounds', 'setMap', 'start', 'placeStart', 'roll', 'build',
+  'setVictory', 'setMap', 'start', 'placeStart', 'roll', 'build',
   'bankTrade', 'proposeTrade', 'respondTrade', 'cancelTrade', 'endTurn', 'forceSkip',
   'setVariant', 'recruit', 'moveTroops', 'attack',
-  'voteRematch', 'backToLobby',
+  'voteRematch', 'backToLobby', 'castVote',
 ]);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

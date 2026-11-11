@@ -143,7 +143,11 @@ function kickButton(player) {
 
 // ---------- Lobby ----------
 
-$('rounds').onchange = () => act('setRounds', { rounds: Number($('rounds').value) });
+$('victory-mode').onchange = () => act('setVictory', { mode: $('victory-mode').value });
+$('victory-target').onchange = () => act('setVictory', { target: Number($('victory-target').value) });
+$('round-limit').onchange = () => act('setVictory', { roundLimit: Number($('round-limit').value) });
+$('vote-continue').onclick = () => act('castVote', { choice: 'weiter' });
+$('vote-end').onclick = () => act('castVote', { choice: 'ende' });
 
 function savedMaps() {
   try {
@@ -197,10 +201,17 @@ function renderLobby() {
     return li;
   }));
   const isHost = state.hostId === state.you;
-  const rounds = $('rounds');
-  rounds.replaceChildren(...state.roundOptions.map((n) => el('option', { value: n }, `${n} Runden`)));
-  rounds.value = state.maxRounds;
-  rounds.disabled = !isHost;
+  const v = state.victory;
+  fillSelect($('victory-mode'), state.victoryModes.map((m) => [m.id, m.name]));
+  $('victory-mode').value = v.mode;
+  fillSelect($('victory-target'), state.targetOptions.map((n) => [String(n), `${n} Punkte`]));
+  $('victory-target').value = String(v.target);
+  fillSelect($('round-limit'), state.roundLimitOptions.map((n) => [String(n), n ? `${n} Runden` : 'Kein Limit']));
+  $('round-limit').value = String(v.roundLimit);
+  $('target-label').classList.toggle('hidden', v.mode === 'vernichtung');
+  for (const id of ['victory-mode', 'victory-target', 'round-limit']) $(id).disabled = !isHost;
+  $('victory-info').textContent = `Ziel: ${state.victoryText}.`
+    + (v.roundLimit ? ' Nach dem Rundenlimit gewinnt, wer die meisten Punkte hat.' : ' Ohne Limit wird nach 150 Runden abgestimmt, ob es weitergeht, danach alle 25 Runden.');
   $('start').disabled = !isHost || state.players.length < 2;
 
   const mapSelect = $('map');
@@ -346,7 +357,7 @@ function renderPlayers() {
     const li = el('li', { class: [p.id === state.currentPlayerId ? 'current' : '', p.connected ? '' : 'offline'].join(' ') });
     const dot = el('span', { class: 'dot' });
     dot.style.background = p.color;
-    const status = p.removed ? ' – entfernt' : p.connected ? '' : ' – getrennt';
+    const status = p.removed ? ' – entfernt' : p.eliminated ? ' – 💀 besiegt' : p.connected ? '' : ' – getrennt';
     li.append(dot, el('span', {}, `${p.id === state.hostId ? '👑 ' : ''}${p.name}${p.id === state.you ? ' (du)' : ''}${status}`));
     li.append(el('span', { class: 'meta' }, `${p.points} Pkt · ${p.resourceCount} Rohst.${p.hasMarkt ? ' · ⚖️' : ''}`));
     const kick = kickButton(p);
@@ -515,7 +526,11 @@ $('propose-trade').onclick = () => {
 
 function renderGame() {
   const current = playerById(state.currentPlayerId);
-  $('round-info').textContent = state.phase === 'setup' ? 'Aufbauphase' : `Runde ${Math.min(state.round, state.maxRounds)} / ${state.maxRounds}`;
+  const limit = state.victory.roundLimit;
+  $('round-info').textContent = state.phase === 'setup'
+    ? 'Aufbauphase'
+    : `Runde ${limit ? `${Math.min(state.round, limit)} / ${limit}` : state.round} · Ziel: ${state.victoryText}`;
+  renderVote();
   $('turn-info').textContent = current ? `Am Zug: ${current.name}` : '';
   $('game-code').textContent = state.code;
   if (!state.validTiles || !state.validTiles[buildMode]) buildMode = null;
@@ -534,13 +549,38 @@ function renderGame() {
   if (state.phase === 'ended') renderResults();
 }
 
+function renderVote() {
+  const vote = state.vote;
+  $('vote').classList.toggle('hidden', !vote || state.phase !== 'main');
+  if (!vote) return;
+  const canVote = vote.voters.includes(state.you);
+  $('vote-info').textContent = `${vote.afterRound} Runden sind gespielt. Wollt ihr weiterspielen? `
+    + 'Stimmt die Mehrheit für Beenden, endet das Spiel und die Punkte zählen. Bei Gleichstand geht es weiter.';
+  $('vote-continue').disabled = !canVote;
+  $('vote-end').disabled = !canVote;
+  $('vote-continue').className = vote.yours === 'weiter' ? 'active' : '';
+  $('vote-end').className = vote.yours === 'ende' ? 'active' : 'secondary';
+  $('vote-status').textContent = `${vote.voted.length} von ${vote.voters.length} verbundenen Spielern haben abgestimmt.`
+    + (vote.yours ? ' Du kannst deine Stimme noch ändern, bis alle abgestimmt haben.' : '');
+}
+
+const FINISH_REASON = {
+  punkte: (w) => `${w.name} hat das Punkteziel erreicht.`,
+  vernichtung: (w) => `${w.name} hat alle Gegner besiegt.`,
+  runden: (w) => `Rundenlimit erreicht – ${w.name} hat die meisten Punkte.`,
+  abstimmung: (w) => `Per Abstimmung beendet – ${w.name} hat die meisten Punkte.`,
+};
+
 function renderResults() {
+  const winner = state.results[0];
+  $('finish-reason').textContent = FINISH_REASON[state.finishReason] ? FINISH_REASON[state.finishReason](winner) : '';
   $('results-list').replaceChildren(...state.results.map((r) => {
     const built = Object.values(r.stats.built).reduce((sum, n) => sum + n, 0);
     const details = [`${r.resources} Rohstoffe`, `${built} gebaut`, `${r.stats.trades} Tausch`];
     if (state.conquest) details.push(`${r.stats.conquered} erobert`, `${r.stats.lost} verloren`);
     const li = el('li', { class: r.removed ? 'offline' : '' });
-    li.append(el('b', {}, `${r.name}: ${r.points} Punkte`), el('span', { class: 'muted' }, ` (${details.join(' · ')})${r.removed ? ' – entfernt' : ''}`));
+    const status = r.removed ? ' – entfernt' : r.eliminated ? ' – besiegt' : '';
+    li.append(el('b', {}, `${r.name}: ${r.points} Punkte`), el('span', { class: 'muted' }, ` (${details.join(' · ')})${status}`));
     return li;
   }));
 

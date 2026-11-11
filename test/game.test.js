@@ -25,6 +25,7 @@ function newGame(n, rng = seeded(1), map = { kind: 'kontinent' }) {
   const game = new Game('TEST', rng);
   for (let i = 0; i < n; i++) game.addPlayer(`p${i}`, `Spieler ${i}`);
   game.setMap('p0', map);
+  game.setVictory('p0', { roundLimit: 20 }); // Tests sollen sicher enden
   return game;
 }
 
@@ -225,19 +226,89 @@ test('Handel: Bank 3:1, mit Markt 2:1, Angebote zwischen Spielern', () => {
   assert.equal(game.trade, null);
 });
 
-test('Spielende nach fester Rundenzahl mit Rangliste', () => {
+test('Rundenlimit (optional): danach gewinnt die höchste Punktzahl', () => {
   const game = newGame(3);
-  game.setRounds('p0', { rounds: 8 });
   game.start('p0');
   finishSetup(game);
-  for (let i = 0; i < 8 * 3; i++) {
+  for (let i = 0; i < 20 * 3; i++) {
     const current = game.currentPlayer();
     game.roll(current.id);
     game.endTurn(current.id);
   }
   assert.equal(game.phase, 'ended');
+  assert.equal(game.finishReason, 'runden');
   assert.equal(game.results.length, 3);
   assert.ok(game.results[0].points >= game.results[1].points);
+});
+
+test('Siegbedingung: Punkteziel am Ende des eigenen Zuges', () => {
+  const game = newGame(2);
+  game.setVictory('p0', { target: 10, roundLimit: 0 });
+  game.start('p0');
+  finishSetup(game);
+  const free = game.tiles.filter((t) => !t.building && game.isPlayable(t));
+  // p1 hat schon genug Punkte, gewinnt aber erst am Ende seines eigenen Zuges
+  for (const t of free.slice(0, 4)) t.building = { type: 'monument', owner: 'p1' };
+  game.roll('p0');
+  game.endTurn('p0');
+  assert.equal(game.phase, 'main');
+  game.roll('p1');
+  game.endTurn('p1');
+  assert.equal(game.phase, 'ended');
+  assert.equal(game.finishReason, 'punkte');
+  assert.equal(game.results[0].id, 'p1');
+  assert.equal(game.gameRecord().winner, 'Spieler 1');
+});
+
+test('Siegbedingung: wählbar je Variante', () => {
+  const game = newGame(2);
+  assert.throws(() => game.setVictory('p0', { mode: 'vernichtung' }), /passt nicht/);
+  assert.throws(() => game.setVictory('p0', { target: 7 }), /Punkteziel/);
+  assert.throws(() => game.setVictory('p0', { roundLimit: 8 }), /Rundenlimit/);
+  assert.throws(() => game.setVictory('p1', { target: 15 }), /Gastgeber/);
+  game.setVariant('p0', { variant: 'eroberung' });
+  assert.equal(game.victory.mode, 'punkte_vernichtung');
+  game.setVictory('p0', { mode: 'vernichtung' });
+  assert.match(game.victoryText(), /^alle Gegner besiegen/);
+  game.setVariant('p0', { variant: 'klassisch' });
+  assert.equal(game.victory.mode, 'punkte');
+});
+
+test('Ohne Rundenlimit: Abstimmung nach 150 Runden, danach alle 25', () => {
+  const game = newGame(3);
+  game.setVictory('p0', { roundLimit: 0 });
+  game.start('p0');
+  finishSetup(game);
+  assert.equal(game.isVoteRound(151), true);
+  assert.equal(game.isVoteRound(152), false);
+  assert.equal(game.isVoteRound(176), true);
+  game.round = 150;
+  game.currentIndex = 2;
+  game.roll('p2');
+  game.endTurn('p2');
+  assert.equal(game.round, 151);
+  assert.ok(game.vote);
+  assert.throws(() => game.roll('p0'), /abstimmen/);
+  // Gleichstand bei getrenntem dritten Spieler → es geht weiter
+  game.setConnected('p2', false);
+  game.castVote('p0', { choice: 'ende' });
+  assert.ok(game.vote, 'wartet, bis alle verbundenen Spieler abgestimmt haben');
+  game.castVote('p1', { choice: 'weiter' });
+  assert.equal(game.vote, null);
+  assert.equal(game.phase, 'main');
+  game.roll('p0');
+  // Nächste Abstimmung: Mehrheit für Beenden
+  game.setConnected('p2', true);
+  game.round = 175;
+  game.currentIndex = 2;
+  game.hasRolled = false;
+  game.roll('p2');
+  game.endTurn('p2');
+  game.castVote('p0', { choice: 'ende' });
+  game.castVote('p1', { choice: 'weiter' });
+  game.castVote('p2', { choice: 'ende' });
+  assert.equal(game.phase, 'ended');
+  assert.equal(game.finishReason, 'abstimmung');
 });
 
 test('Getrennte Spieler können übersprungen werden', () => {
@@ -404,9 +475,41 @@ test('Eroberung: Sieg übernimmt das Gebäude, Verluste nach Regel', () => {
   assert.equal(city.troops, 4);
   assert.equal(game.points('p0'), 3);
   assert.equal(game.points('p1'), 1);
-  // Das letzte Gebäude eines Spielers ist geschützt.
+  // Mit Vernichtung als Siegbedingung darf auch das letzte Gebäude fallen.
   put('6,0', 'siedlung', 'p0', 3);
-  assert.equal(game.canAttack(game.getTile('6,0'), game.getTile('7,0'), 'p0'), false);
+  assert.equal(game.canAttack(game.getTile('6,0'), game.getTile('7,0'), 'p0'), true);
+});
+
+test('Eroberung: Wer kein Landgebäude mehr hat, ist besiegt; der Letzte gewinnt', () => {
+  const { game, put } = conquestGame();
+  game.players.push({ id: 'p2', name: 'Dritter', color: '#000', resources: { holz: 0, stein: 0, nahrung: 0, erz: 0 },
+    connected: true, removed: false, stats: game.players[0].stats && { ...game.players[0].stats, built: {} } });
+  put('2,0', 'siedlung', 'p0', 6);
+  put('3,0', 'siedlung', 'p1', 0);
+  put('7,0', 'siedlung', 'p2', 0);
+  game.rng = scripted([6, 1]);
+  game.attack('p0', { from: '2,0', to: '3,0', count: 6 });
+  assert.equal(game.players[1].eliminated, true);
+  assert.equal(game.phase, 'main', 'p2 ist noch im Spiel');
+  game.endTurn('p0');
+  assert.equal(game.currentPlayer().id, 'p2', 'Besiegte werden übersprungen');
+
+  // Nur Vernichtung: Punkte beenden das Spiel nicht
+  const other = conquestGame();
+  other.game.victory = { mode: 'vernichtung', target: 10, roundLimit: 0 };
+  for (const id of ['0,0', '1,0', '2,0', '3,0']) other.put(id, 'monument', 'p0', 0);
+  other.put('2,3', 'siedlung', 'p0', 6);
+  other.put('3,3', 'siedlung', 'p1', 0);
+  other.game.endTurn('p0');
+  assert.equal(other.game.phase, 'main');
+  other.game.hasRolled = true;
+  other.game.endTurn('p1');
+  other.game.hasRolled = true;
+  other.game.rng = scripted([6, 1]);
+  other.game.attack('p0', { from: '2,3', to: '3,3', count: 6 });
+  assert.equal(other.game.phase, 'ended');
+  assert.equal(other.game.finishReason, 'vernichtung');
+  assert.equal(other.game.results[0].id, 'p0');
 });
 
 test('Eroberung: Wachturm stärkt Nachbarn, Limes schirmt Nachbarn ab', () => {
@@ -517,7 +620,6 @@ test('Räume: Nochmal spielen per Abstimmung, Host kann direkt starten oder zur�
   const game = newGame(3);
   const records = [];
   game.onFinished = (r) => records.push(r);
-  game.setRounds('p0', { rounds: 8 });
   game.start('p0');
   finishSetup(game);
   playToEnd(game);
@@ -532,7 +634,7 @@ test('Räume: Nochmal spielen per Abstimmung, Host kann direkt starten oder zur�
   assert.equal(game.phase, 'ended');
   game.voteRematch('p1', { vote: true });
   assert.equal(game.phase, 'setup');
-  assert.equal(game.maxRounds, 8);
+  assert.equal(game.victory.roundLimit, 20);
   assert.equal(game.recorded, false);
 
   finishSetup(game);

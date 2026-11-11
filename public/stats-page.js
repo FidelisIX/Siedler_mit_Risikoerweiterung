@@ -14,7 +14,7 @@ function formatDate(iso) {
 }
 
 const RECORDS = [
-  ['bestGame', '🏆 Beste Partie', (r) => [`${r.points} Punkte`, `${r.player} · ${r.map} · ${r.rounds} Runden · ${formatDate(r.date)}`]],
+  ['bestGame', '🏆 Beste Partie', (r) => [`${r.points} Punkte`, `${r.player} · ${r.map}${r.rounds ? ` · ${r.rounds} Runden` : ''} · ${formatDate(r.date)}`]],
   ['mostWins', '🥇 Meiste Siege', (r) => [`${r.wins} Sieg${r.wins === 1 ? '' : 'e'}`, r.player]],
   ['mostGames', '🎲 Meiste Partien', (r) => [`${r.games} Partie${r.games === 1 ? '' : 'n'}`, r.player]],
   ['mostBuilt', '🏗️ Meiste Gebäude in einer Partie', (r) => [`${r.built} Gebäude`, `${r.player} · ${r.map} · ${formatDate(r.date)}`]],

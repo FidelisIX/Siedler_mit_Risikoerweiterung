@@ -9,6 +9,8 @@ const playerKey = (name) => String(name).trim().toLowerCase();
 const builtCount = (stats) => Object.values((stats && stats.built) || {}).reduce((sum, n) => sum + n, 0);
 
 function winnersOf(game) {
+  // Seit den wählbaren Siegbedingungen steht der Sieger im Datensatz (z. B. bei Vernichtung nicht nach Punkten).
+  if (game.winner) return [playerKey(game.winner)];
   const scored = game.players.filter((p) => !p.removed);
   if (scored.length < 2) return [];
   const best = Math.max(...scored.map((p) => p.points));
@@ -78,7 +80,7 @@ function computeStats(allGames, filter = {}) {
       s.trades += (p.stats && p.stats.trades) || 0;
 
       const entry = { player: s.name, date: g.endedAt, map: g.map.name, variant: g.variant };
-      if (!bestGame || p.points > bestGame.points) bestGame = { ...entry, points: p.points, rounds: g.rounds };
+      if (!bestGame || p.points > bestGame.points) bestGame = { ...entry, points: p.points, rounds: g.roundsPlayed ?? g.rounds };
       if (!mostBuilt || built > mostBuilt.built) mostBuilt = { ...entry, built };
       const conquered = (p.stats && p.stats.conquered) || 0;
       if (conquered > 0 && (!mostConquests || conquered > mostConquests.conquered)) mostConquests = { ...entry, conquered };

@@ -5,8 +5,14 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
 
 ## Spielregeln (Kurzfassung)
 
-- **Ziel:** Nach einer festen Rundenzahl (8, 12 oder 16, wählt der Gastgeber) gewinnt, wer die meisten Punkte hat.
-  Gleichstand: mehr Rohstoffe.
+- **Siegbedingung** (wählt der Gastgeber in der Lobby):
+  - **Punkteziel** (10, 12, 15 oder 20 Punkte): Wer es am Ende seines eigenen Zuges erreicht, gewinnt sofort.
+  - In der Variante **Eroberung** stattdessen „Punkteziel oder alle Gegner besiegen“ bzw. „Nur alle Gegner besiegen“
+    (siehe unten).
+  - **Rundenlimit (optional):** 20, 30 oder 40 Runden. Ist bis dahin niemand am Ziel, gewinnt die höchste Punktzahl
+    (Gleichstand: mehr Rohstoffe).
+  - **Ohne Rundenlimit** wird nach 150 Runden abgestimmt, ob weitergespielt wird, danach alle 25 Runden. Es zählen
+    die verbundenen Spieler; die Mehrheit für „Beenden“ beendet das Spiel nach Punkten, bei Gleichstand geht es weiter.
 - **Karte:** Hex-Felder (Wald, Steinbruch, Acker, Mine, Ödland, Wasser) in beliebiger Form. Die Landfelder
   werden automatisch in 6 gleich große Regionen geteilt; Wasser gehört zur Region des nächsten Landfelds.
   Karten zur Auswahl in der Lobby:
@@ -75,7 +81,9 @@ Der Gastgeber wählt in der Lobby die Variante **Klassisch** oder **Eroberung**.
   - Verlierer: verliert alle beteiligten beweglichen Truppen.
   - Sieger: verliert die Hälfte (aufgerundet) der gegnerischen beweglichen Truppen.
   - Siegt der Angreifer, **übernimmt er das Gebäude** (samt Punkten) mit den überlebenden Truppen.
-- Das **letzte Landgebäude** eines Spielers kann nicht angegriffen werden.
+- **Besiegt** ist, wer kein Landgebäude mehr hat: Seine Züge werden übersprungen. Bleibt nur ein Spieler übrig,
+  gewinnt er („alle Gegner besiegen“). Mit „Punkteziel oder alle Gegner besiegen“ gewinnt zusätzlich, wer am Ende
+  seines Zuges das Punkteziel erreicht.
 
 Alle Werte stehen gesammelt in `CONQUEST` und `BUILDINGS` in `server/game.js`.
 

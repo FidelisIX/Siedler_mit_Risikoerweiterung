@@ -23,7 +23,8 @@
       <details class="rules">
         <summary>Spielregeln</summary>
         <ul>
-          <li><b>Ziel:</b> Nach der festen Rundenzahl gewinnt, wer die meisten Punkte hat (Gleichstand: mehr Rohstoffe).</li>
+          <li><b>Ziel:</b> Wer am Ende seines Zuges das Punkteziel erreicht, gewinnt (in der Eroberung wählbar: auch durch
+            Besiegen aller Gegner). Optional mit Rundenlimit; ohne Limit wird nach 150 Runden abgestimmt, ob es weitergeht.</li>
           <li><b>Aufbau:</b> Jeder setzt zwei Start-Siedlungen auf freie Felder ohne Nachbargebäude.</li>
           <li><b>Würfeln:</b> Wer am Zug ist, wirft den Regionswürfel (1–6) und den Geländewürfel (Wald, Steinbruch, Acker, Mine, 2× Stern).
             Jede Siedlung in der gewürfelten Region produziert, ebenso jede Siedlung auf dem gewürfelten Gelände – trifft beides zu, doppelt.
@@ -52,9 +53,6 @@
       <p class="muted">Teile den Code oder den Link mit deinen Mitspielern.</p>
       <button id="copy-link" class="secondary small">Link kopieren</button>
       <ul id="lobby-players" class="player-list"></ul>
-      <label>Runden
-        <select id="rounds"></select>
-      </label>
       <label>Karte
         <select id="map"></select>
       </label>
@@ -64,6 +62,16 @@
       <label>Spielvariante
         <select id="variant"></select>
       </label>
+      <label>Siegbedingung
+        <select id="victory-mode"></select>
+      </label>
+      <label id="target-label">Punkteziel
+        <select id="victory-target"></select>
+      </label>
+      <label>Rundenlimit (optional)
+        <select id="round-limit"></select>
+      </label>
+      <p id="victory-info" class="muted small-text"></p>
       <button id="start">Spiel starten</button>
       <p id="lobby-hint" class="muted"></p>
       <button id="leave" class="secondary small">Raum verlassen</button>
@@ -134,9 +142,21 @@
       </aside>
     </main>
     <div id="toast" class="toast hidden"></div>
+    <div id="vote" class="overlay hidden">
+      <div class="card narrow">
+        <h2>Weiterspielen?</h2>
+        <p id="vote-info"></p>
+        <div class="row">
+          <button id="vote-continue">▶️ Weiterspielen</button>
+          <button id="vote-end" class="secondary">🏁 Beenden (Punkte zählen)</button>
+        </div>
+        <p id="vote-status" class="muted small-text"></p>
+      </div>
+    </div>
     <div id="results" class="overlay hidden">
       <div class="card narrow">
         <h2>Spielende</h2>
+        <p id="finish-reason" class="muted"></p>
         <ol id="results-list" class="results"></ol>
         <button id="rematch">🔁 Nochmal spielen</button>
         <p id="rematch-info" class="muted small-text"></p>
