@@ -72,6 +72,7 @@ In der Lobby stellt der Gastgeber **„Feste Teams“** ein (bis zu 3 Teams: A, 
 - **Eroberung:** Teammitglieder können sich nicht angreifen, dürfen Truppen auf Gebäude des Partners verlegen und
   über dessen Schiffe angreifen.
 - **Handel:** Banktausch 2:1, wenn man selbst und ein Teammitglied je einen Hafen haben.
+- **Rohstoffe** der Teammitglieder sind in der Spielerliste sichtbar; von Gegnern sieht man nur die Summe.
 
 ## Spielvariante „Eroberung“ (Truppen & Kämpfe)
 

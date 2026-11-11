@@ -381,6 +381,11 @@ function renderPlayers() {
     const team = p.team ? `[${p.team}] ` : '';
     li.append(dot, el('span', {}, `${team}${p.id === state.hostId ? '👑 ' : ''}${p.name}${p.id === state.you ? ' (du)' : ''}${status}`));
     li.append(el('span', { class: 'meta' }, `${p.points} Pkt · ${p.resourceCount} Rohst.${p.hasMarkt ? ' · ⚖️' : ''}`));
+    // Rohstoffe von Teammitgliedern sind sichtbar
+    if (p.resources && p.id !== state.you) {
+      li.append(el('span', { class: 'ally-resources' },
+        RESOURCES.map((r) => `${RESOURCE_LABEL[r].split(' ')[0]} ${p.resources[r]}`).join('  ')));
+    }
     const kick = kickButton(p);
     if (kick) li.append(kick);
     return li;

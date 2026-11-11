@@ -174,5 +174,7 @@ th { font-weight: 600; color: var(--muted); }
 
 /* Teams */
 .team-select { padding: 2px 4px; font-size: .8rem; margin-left: auto; }
+.player-list li { flex-wrap: wrap; }
+.ally-resources { flex-basis: 100%; padding-left: 22px; font-size: .75rem; color: var(--muted); }
 .team-scores { display: flex; flex-wrap: wrap; gap: 6px; }
 .team-score { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: .8rem; font-weight: 600; }

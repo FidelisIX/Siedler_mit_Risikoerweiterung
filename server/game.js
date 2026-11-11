@@ -1182,7 +1182,8 @@ class Game {
         eliminated: !!p.eliminated,
         points: this.points(p.id),
         resourceCount: total(p.resources),
-        resources: p.id === viewerId ? p.resources : null,
+        // Eigene Rohstoffe und die von Teammitgliedern sind sichtbar, alle anderen nur als Summe.
+        resources: p.id === viewerId || (this.teamsEnabled && this.allies(p.id, viewerId)) ? p.resources : null,
         hasMarkt: this.hasMarkt(p.id),
         team: p.team || null,
         bankRate: this.bankRate(p.id),

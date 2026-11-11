@@ -56,7 +56,7 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
   - Punkteziel des Teams = Ziel × Teamgröße (Annahme zu „entsprechend verschieben“).
   - 2:1 gilt als **Banktausch** für beide Teammitglieder, sobald jeder von ihnen einen eigenen Hafen hat
     (Annahme – „Tausch im Team“ untereinander ist ohnehin frei verhandelbar).
-  - Rohstoffe der Teammitglieder bleiben verdeckt (Frage nicht beantwortet, daher unverändert).
+  - Rohstoffe der Teammitglieder sind sichtbar (Simon, 2026-11-11), die der Gegner weiter nur als Summe.
   - Teammitglieder können sich nicht angreifen. Bauen geht weiter nur neben eigenen Gebäuden und Schiffen.
   - Statistik: Alle Mitglieder des Siegerteams bekommen einen Sieg.
   - Tests: `test/game.test.js` (Abschnitt Teams).

@@ -763,6 +763,18 @@ test('Teams: keine Angriffe auf Partner, Verlegen zum Partner, Angriff über Par
   assert.equal(game.canAttack(game.getTile('1,0'), game.getTile('3,0'), 'p0'), true, 'über das Schiff des Partners');
 });
 
+test('Teams: Rohstoffe von Teammitgliedern sind sichtbar, von Gegnern nicht', () => {
+  const game = teamGame(['A', 'A', 'B']);
+  game.start('p0');
+  const seen = (viewer, id) => game.publicState(viewer).players.find((p) => p.id === id).resources;
+  assert.deepEqual(seen('p0', 'p1'), game.getPlayer('p1').resources);
+  assert.equal(seen('p0', 'p2'), null);
+  assert.equal(seen('p2', 'p0'), null);
+  const solo = newGame(2);
+  solo.start('p0');
+  assert.equal(solo.publicState('p0').players.find((p) => p.id === 'p1').resources, null);
+});
+
 test('Teams: Bank 2:1, wenn man selbst und ein Teammitglied je einen Hafen haben', () => {
   const game = teamGame(['A', 'A', 'B']);
   game.start('p0');
