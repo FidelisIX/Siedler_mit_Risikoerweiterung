@@ -500,9 +500,22 @@ function fillSelect(select, options) {
 function renderTrade() {
   const myTurn = state.currentPlayerId === state.you && state.phase === 'main' && state.hasRolled;
   const rate = me().bankRate;
-  fillSelect($('bank-give'), RESOURCES.map((r) => [r, `${rate}× ${RESOURCE_LABEL[r]}`]));
-  fillSelect($('bank-get'), RESOURCES.map((r) => [r, `1× ${RESOURCE_LABEL[r]}`]));
-  $('bank-trade').disabled = !myTurn;
+  const give = $('bank-give');
+  const get = $('bank-get');
+  fillSelect(give, RESOURCES.map((r) => [r, `${rate}× ${RESOURCE_LABEL[r]}`]));
+  fillSelect(get, RESOURCES.map((r) => [r, `1× ${RESOURCE_LABEL[r]}`]));
+  const res = me().resources;
+  // Vorbelegung (B-003): abgeben, wovon man am meisten hat; bekommen, wovon man am wenigsten hat.
+  if (!give.dataset.chosen) {
+    const options = RESOURCES.filter((r) => !get.dataset.chosen || r !== get.value);
+    give.value = options.reduce((best, r) => (res[r] > res[best] ? r : best));
+  }
+  if (!get.dataset.chosen || get.value === give.value) {
+    get.value = RESOURCES.filter((r) => r !== give.value).reduce((best, r) => (res[r] < res[best] ? r : best));
+  }
+  const enough = res[give.value] >= rate;
+  $('bank-trade').disabled = !myTurn || give.value === get.value || !enough;
+  $('bank-trade').title = enough ? '' : `Du brauchst ${rate}× ${RESOURCE_LABEL[give.value]}.`;
 
   fillSelect($('trade-to'), state.players.filter((p) => p.id !== state.you).map((p) => [p.id, `an ${p.name}`]));
   const grid = $('trade-grid');
@@ -547,6 +560,17 @@ $('roll').onclick = () => act('roll');
 $('end-turn').onclick = () => { buildMode = null; milMode = null; milSource = null; act('endTurn'); };
 $('force-skip').onclick = () => act('forceSkip');
 $('bank-trade').onclick = () => act('bankTrade', { give: $('bank-give').value, get: $('bank-get').value });
+// Eigene Auswahl merken; wählt man beide gleich, weicht das andere Feld aus.
+$('bank-give').onchange = () => {
+  $('bank-give').dataset.chosen = '1';
+  if ($('bank-give').value === $('bank-get').value) delete $('bank-get').dataset.chosen;
+  render();
+};
+$('bank-get').onchange = () => {
+  $('bank-get').dataset.chosen = '1';
+  if ($('bank-get').value === $('bank-give').value) delete $('bank-give').dataset.chosen;
+  render();
+};
 $('propose-trade').onclick = () => {
   const read = (attr) => Object.fromEntries(
     [...document.querySelectorAll(`[data-${attr}]`)].map((input) => [input.dataset[attr], Number(input.value) || 0]),

@@ -18,13 +18,6 @@ Bekannte Fehler und Einschränkungen. Neue Einträge oben bei „Offen“ ergän
 
 ## Offen
 
-### B-003: Banktausch ist mit „Holz → Holz“ vorbelegt
-- **Gemeldet:** 2026-10-30, Claude (beim Testen gesehen)
-- **Wo:** Spiel, Seitenleiste „Handel“
-- **Schritte zum Nachstellen:** 1. Würfeln. 2. Ohne Auswahl auf „Bank“ klicken.
-- **Erwartet:** Sinnvolle Vorbelegung (zwei verschiedene Rohstoffe) oder deaktivierter Knopf.
-- **Tatsächlich:** Beide Auswahlfelder stehen auf Holz; der Klick meldet „Ungültiger Tausch“.
-
 ### B-002: Raumsicherung greift nur bei geordnetem Herunterfahren
 - **Gemeldet:** 2026-10-30, Claude (Einschränkung, wie bei Ortsraten)
 - **Wo:** Server
@@ -36,6 +29,16 @@ Bekannte Fehler und Einschränkungen. Neue Einträge oben bei „Offen“ ergän
 ---
 
 ## Behoben
+
+### B-003: Banktausch ist mit „Holz → Holz“ vorbelegt
+- **Gemeldet:** 2026-10-30, Claude (beim Testen gesehen)
+- **Wo:** Spiel, Seitenleiste „Handel“
+- **Schritte zum Nachstellen:** 1. Würfeln. 2. Ohne Auswahl auf „Bank“ klicken.
+- **Erwartet:** Sinnvolle Vorbelegung (zwei verschiedene Rohstoffe) oder deaktivierter Knopf.
+- **Tatsächlich:** Beide Auswahlfelder stehen auf Holz; der Klick meldet „Ungültiger Tausch“.
+- **Behoben:** 2026-11-11 – Vorbelegung: abgeben, wovon man am meisten hat, bekommen, wovon man am wenigsten hat.
+  Wählt man beide Seiten gleich, weicht das andere Feld aus. Der Knopf ist gesperrt, solange man nicht genug
+  Rohstoffe für den Tausch hat (Hinweis beim Darüberfahren).
 
 ### B-001: Endstand erscheint nicht, Oberfläche hängt bei Spielende
 - **Gemeldet:** 2026-10-30, Claude (beim Browser-Test einer ganzen Partie)
