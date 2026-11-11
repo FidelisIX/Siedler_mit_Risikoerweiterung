@@ -18,6 +18,12 @@ Bekannte Fehler und Einschränkungen. Neue Einträge oben bei „Offen“ ergän
 
 ## Offen
 
+_Derzeit keine._
+
+---
+
+## Behoben
+
 ### B-002: Raumsicherung greift nur bei geordnetem Herunterfahren
 - **Gemeldet:** 2026-10-30, Claude (Einschränkung, wie bei Ortsraten)
 - **Wo:** Server
@@ -25,10 +31,11 @@ Bekannte Fehler und Einschränkungen. Neue Einträge oben bei „Offen“ ergän
 - **Tatsächlich:** Räume werden nur bei SIGTERM (z. B. Deploy auf Render) gesichert. Bei einem Absturz
   gehen sie verloren. Sicherungen älter als 10 Minuten werden verworfen.
   (Der fehlende `STATS_GITHUB_TOKEN` ist seit 2026-11-11 kein Grund mehr, siehe docs/OFFENE_AUFGABEN.md, A-001.)
-
----
-
-## Behoben
+- **Behoben:** 2026-11-11 – Zusätzlich zur Sicherung beim Herunterfahren sichert der Server jeden Raum, in dem sich
+  etwas geändert hat, alle 60 s (`ROOM_BACKUP_INTERVAL_MS`). Nach einem Absturz fehlt höchstens die letzte Minute.
+  Sicherungen gelten jetzt 35 statt 10 Minuten; verlassene Räume werden beim Aufräumen auch aus der Sicherung gelöscht.
+  Grenze: GitHub erlaubt im Allgemeinen höchstens 500 schreibende Anfragen pro Stunde – bei 60 s reicht das für etwa
+  8 gleichzeitig aktive Räume. Test: `test/server.test.js` („übersteht einen Absturz“).
 
 ### B-003: Banktausch ist mit „Holz → Holz“ vorbelegt
 - **Gemeldet:** 2026-10-30, Claude (beim Testen gesehen)

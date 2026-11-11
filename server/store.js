@@ -112,6 +112,7 @@ class GitHubStore {
     this.apiUrl = apiUrl.replace(/\/$/, '');
     this.fetch = fetchImpl;
     this.files = new Map(); // Pfad → { text, sha }
+    this.roomShas = new Map(); // Raumdatei → sha der zuletzt bekannten Sicherung (spart einen GET pro Sicherung)
     this.queue = Promise.resolve();
     this.description = `GitHub ${repo}, Branch ${branch}`;
     this.persistent = true;
@@ -207,22 +208,37 @@ class GitHubStore {
     return { sha: data.sha, json: JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) };
   }
 
-  async saveRoom(code, snap) {
+  async saveRoom(code, snap, attempt = 1) {
     const file = roomFile(code);
-    const existing = await this.getJsonFile(file); // alte Sicherung überschreiben braucht deren sha
+    // Eine bestehende Sicherung zu überschreiben braucht deren sha; nur nachsehen, wenn sie unbekannt ist.
+    if (!this.roomShas.has(file)) {
+      const existing = await this.getJsonFile(file);
+      this.roomShas.set(file, existing ? existing.sha : null);
+    }
+    const sha = this.roomShas.get(file);
     const res = await this.request('PUT', this.contentsPath(file), {
       body: {
-        message: `Raum ${code} vor Neustart gesichert`,
+        message: `Raum ${code} gesichert`,
         content: Buffer.from(JSON.stringify(snap), 'utf8').toString('base64'),
         branch: this.branch,
-        ...(existing ? { sha: existing.sha } : {}),
+        ...(sha ? { sha } : {}),
       },
     });
-    if (!res.ok) throw new Error(`GitHub: Raum ${code} nicht gesichert (${res.status})`);
+    if (res.ok) {
+      this.roomShas.set(file, (await res.json()).content.sha);
+      return;
+    }
+    // 409/422: sha passt nicht (Datei zwischenzeitlich geändert oder gelöscht) → neu nachsehen
+    if ((res.status === 409 || res.status === 422) && attempt < 3) {
+      this.roomShas.delete(file);
+      return this.saveRoom(code, snap, attempt + 1);
+    }
+    throw new Error(`GitHub: Raum ${code} nicht gesichert (${res.status})`);
   }
 
   async loadRoom(code) {
     const file = await this.getJsonFile(roomFile(code));
+    this.roomShas.set(roomFile(code), file ? file.sha : null);
     return file ? file.json : null;
   }
 
@@ -236,9 +252,10 @@ class GitHubStore {
   async deleteRoom(code) {
     const file = roomFile(code);
     const existing = await this.getJsonFile(file);
+    this.roomShas.delete(file);
     if (!existing) return;
     const res = await this.request('DELETE', this.contentsPath(file), {
-      body: { message: `Raum ${code} wiederhergestellt`, sha: existing.sha, branch: this.branch },
+      body: { message: `Raumsicherung ${code} entfernt`, sha: existing.sha, branch: this.branch },
     });
     if (!res.ok && res.status !== 404) throw new Error(`GitHub: Raum ${code} nicht gelöscht (${res.status})`);
   }

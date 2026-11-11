@@ -160,10 +160,17 @@ Einrichtung:
 
 ### Laufende Spiele überstehen Deploys
 
-Mit gesetztem Token sichert der Server beim Herunterfahren (SIGTERM, z. B. bei einem Deploy auf Render) alle
-aktiven Räume in `raeume/<CODE>.json` im Branch `statistik`. Die Browser verbinden sich automatisch neu, der neue
-Server stellt die Räume wieder her und die Partie läuft an derselben Stelle weiter. Sicherungen älter als
-10 Minuten werden verworfen; Abstürze sind nicht abgedeckt. Sitzungs-Tokens werden nur als SHA-256-Hash gesichert.
+Mit gesetztem Token sichert der Server alle aktiven Räume in `raeume/<CODE>.json` im Branch `statistik`:
+
+- **regelmäßig:** jeder Raum, in dem sich etwas geändert hat, alle 60 s – so übersteht eine Partie auch einen
+  Absturz (es fehlt höchstens die letzte Minute);
+- **beim Herunterfahren** (SIGTERM, z. B. bei einem Deploy auf Render) alle Räume mit dem aktuellen Stand.
+
+Die Browser verbinden sich automatisch neu, der neue Server stellt die Räume wieder her und die Partie läuft weiter.
+Sicherungen älter als 35 Minuten werden verworfen. Sitzungs-Tokens werden nur als SHA-256-Hash gesichert.
+GitHub erlaubt im Allgemeinen höchstens 500 schreibende Anfragen pro Stunde
+([Rate Limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)); bei 60 s reicht
+das für etwa 8 gleichzeitig aktive Räume.
 
 | Umgebungsvariable    | Standard                                  | Bedeutung                                         |
 |----------------------|-------------------------------------------|---------------------------------------------------|
@@ -172,6 +179,7 @@ Server stellt die Räume wieder her und die Partie läuft an derselben Stelle we
 | `STATS_REPO`         | `FidelisIX/siedler_mit_risikoerweiterung` | Repo für die Daten                                |
 | `STATS_BRANCH`       | `statistik`                               | Datenbranch; darf nicht `main` sein               |
 | `STATS_FILE`         | –                                         | Alternativ: lokale Datei (Entwicklung) ohne Token |
+| `ROOM_BACKUP_INTERVAL_MS` | `60000`                              | Abstand der regelmäßigen Raumsicherung in ms      |
 
 ## Aufgaben, Bugs und Wünsche
 

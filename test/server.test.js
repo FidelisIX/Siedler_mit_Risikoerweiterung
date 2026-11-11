@@ -82,3 +82,48 @@ test('Server: zweiter Tab, Entfernen, Sicherung und Wiederherstellung nach Neust
   anna2.close();
   await second.close();
 });
+
+test('Server: regelmäßige Sicherung übersteht einen Absturz (ohne geordnetes Herunterfahren)', async () => {
+  const store = new MemoryStore();
+  store.persistent = true;
+  const first = await start(store);
+  const anna = await client(first.url);
+  const ben = await client(first.url);
+  const { code } = await call(anna, 'createRoom', { name: 'Anna', token: 'token-anna-123' });
+  await call(ben, 'joinRoom', { code, name: 'Ben', token: 'token-ben-1234' });
+  await call(anna, 'action', { type: 'start' });
+  await tick();
+
+  assert.equal(await first.backupRooms(), 1, 'geänderter Raum wird gesichert');
+  assert.equal(await first.backupRooms(), 0, 'unveränderter Raum wird nicht erneut gesichert');
+
+  // „Absturz“: kein shutdown(), Server einfach weg
+  anna.close();
+  ben.close();
+  await first.close();
+
+  const second = await start(store);
+  const anna2 = await client(second.url);
+  assert.deepEqual(await call(anna2, 'joinRoom', { code, name: 'Anna', token: 'token-anna-123' }), { code });
+  await tick();
+  assert.equal(anna2.states.at(-1).phase, 'setup');
+  assert.equal(anna2.states.at(-1).players.length, 2);
+  anna2.close();
+  await second.close();
+});
+
+test('GitHub-Speicher: wiederholte Raumsicherungen fragen die sha nur einmal ab', async () => {
+  const { GitHubStore } = require('../server/store');
+  const calls = [];
+  let sha = 0;
+  const fakeFetch = async (url, { method }) => {
+    calls.push(method);
+    if (method === 'GET') return { status: 404, ok: false };
+    return { status: 200, ok: true, json: async () => ({ content: { sha: `sha-${++sha}` } }) };
+  };
+  const gh = new GitHubStore({ token: 't', repo: 'o/r', branch: 'statistik', fetchImpl: fakeFetch });
+  await gh.saveRoom('ABCDE', { savedAt: 'x' });
+  await gh.saveRoom('ABCDE', { savedAt: 'y' });
+  await gh.saveRoom('ABCDE', { savedAt: 'z' });
+  assert.deepEqual(calls, ['GET', 'PUT', 'PUT', 'PUT']);
+});

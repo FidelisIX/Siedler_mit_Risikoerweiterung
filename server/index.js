@@ -11,7 +11,14 @@ const { createStatsStore } = require('./store');
 const { computeStats } = require('./stats');
 
 const ROOM_IDLE_MS = 30 * 60 * 1000;
-const SNAPSHOT_MAX_AGE_MS = 10 * 60 * 1000; // ältere Raumsicherungen werden verworfen
+// Ältere Raumsicherungen werden verworfen. Etwas länger als ROOM_IDLE_MS, damit auch ein Raum, in dem vor dem
+// Absturz eine Weile nichts passiert ist, noch wiederhergestellt wird.
+const SNAPSHOT_MAX_AGE_MS = 35 * 60 * 1000;
+// Regelmäßige Sicherung geänderter Räume (B-002: übersteht auch Abstürze). GitHub erlaubt im Allgemeinen höchstens
+// 80 schreibende Anfragen pro Minute und 500 pro Stunde (einzelne Endpunkte weniger, Stand 2026-11, siehe
+// https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api) – bei 60 s reicht das für
+// etwa 8 gleichzeitig aktive Räume.
+const BACKUP_INTERVAL_MS = Number(process.env.ROOM_BACKUP_INTERVAL_MS) || 60 * 1000;
 const RESTORE_WAIT_MS = 15_000; // so lange wartet ein Beitritt auf die Sicherung des alten Servers
 const SHUTDOWN_SAVE_TIMEOUT_MS = 8_000;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -30,7 +37,9 @@ function validToken(token) {
   return typeof token === 'string' && token.length >= 10 && token.length <= 100;
 }
 
-function createServer({ store = createStatsStore(), restoreWaitMs = RESTORE_WAIT_MS, restorePollMs = 1000 } = {}) {
+function createServer({
+  store = createStatsStore(), restoreWaitMs = RESTORE_WAIT_MS, restorePollMs = 1000, backupIntervalMs = BACKUP_INTERVAL_MS,
+} = {}) {
   const app = express();
   const server = http.createServer(app);
   const io = new Server(server);
@@ -98,6 +107,7 @@ function createServer({ store = createStatsStore(), restoreWaitMs = RESTORE_WAIT
 
   function broadcast(room) {
     room.lastActive = Date.now();
+    room.dirty = true; // für die nächste regelmäßige Sicherung vormerken
     for (const s of socketsOf(room.game.code)) {
       s.emit('state', room.game.publicState(s.data.playerId));
     }
@@ -311,19 +321,46 @@ function createServer({ store = createStatsStore(), restoreWaitMs = RESTORE_WAIT
       if (socketsOf(code).length === 0 && now - room.lastActive > ROOM_IDLE_MS) {
         room.game.destroy();
         rooms.delete(code);
+        // Verlassene Räume nicht nach einem späteren Neustart wieder auferstehen lassen
+        if (room.backedUp) store.deleteRoom(code).catch((err) => console.error('Raumsicherung nicht gelöscht:', err.message));
       }
     }
   }, 5 * 60 * 1000);
   sweep.unref();
 
+  // Regelmäßige Sicherung: nur Räume mit Spielern, die sich seit der letzten Sicherung geändert haben.
+  async function backupRooms() {
+    if (!store.persistent) return 0;
+    let saved = 0;
+    for (const room of rooms.values()) {
+      if (!room.dirty || room.saving || room.game.players.length === 0) continue;
+      room.saving = true;
+      room.dirty = false;
+      try {
+        await store.saveRoom(room.game.code, roomSnapshot(room));
+        room.backedUp = true;
+        saved++;
+      } catch (err) {
+        room.dirty = true; // beim nächsten Mal erneut versuchen
+        console.error(`Raum ${room.game.code} nicht gesichert:`, err.message);
+      } finally {
+        room.saving = false;
+      }
+    }
+    return saved;
+  }
+  const backup = setInterval(() => { backupRooms(); }, backupIntervalMs);
+  backup.unref();
+
   function close() {
     clearInterval(sweep);
+    clearInterval(backup);
     for (const room of rooms.values()) room.game.destroy();
     io.close();
     return new Promise((resolve) => server.close(() => resolve()));
   }
 
-  return { server, io, rooms, stats, statsReady, cleanupReady, shutdown, close };
+  return { server, io, rooms, stats, statsReady, cleanupReady, shutdown, backupRooms, close };
 }
 
 if (require.main === module) {
