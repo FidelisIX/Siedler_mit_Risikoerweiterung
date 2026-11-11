@@ -158,7 +158,7 @@ test('Würfeln: Region und Gelände produzieren, beides zählt doppelt', () => {
   // Alle Gebäude entfernen und gezielt eines setzen.
   for (const t of game.tiles) t.building = null;
   const tile = game.tiles.find((t) => t.terrain === 'mine' && t.region === 2);
-  tile.building = { type: 'siedlung', owner: 'p0' };
+  tile.building = { type: 'dorf', owner: 'p0' };
   game.players[0].resources = { holz: 0, stein: 0, nahrung: 0, erz: 0 };
 
   game.rng = scripted([2, 4]); // Region 2, Gelände Mine (Seite 4)
@@ -166,7 +166,7 @@ test('Würfeln: Region und Gelände produzieren, beides zählt doppelt', () => {
   assert.equal(game.players[0].resources.erz, 2);
   game.endTurn('p0');
 
-  tile.building.type = 'gut';
+  tile.building.type = 'stadt';
   game.rng = scripted([5, 5]); // Region 5, Stern -> Feld liegt nicht in Region 5
   game.roll('p1');
   assert.equal(game.players[0].resources.erz, 2);
@@ -185,20 +185,20 @@ test('Bauen: Kosten, Nachbarschaft und Ausbau', () => {
   game.roll('p0');
   const p0 = game.players[0];
   p0.resources = { holz: 0, stein: 0, nahrung: 0, erz: 0 };
-  const target = game.validTiles('p0').siedlung[0];
-  assert.throws(() => game.build('p0', { type: 'siedlung', tileId: target }), /Nicht genug/);
+  const target = game.validTiles('p0').dorf[0];
+  assert.throws(() => game.build('p0', { type: 'dorf', tileId: target }), /Nicht genug/);
 
   p0.resources = { holz: 5, stein: 5, nahrung: 5, erz: 5 };
-  game.build('p0', { type: 'siedlung', tileId: target });
+  game.build('p0', { type: 'dorf', tileId: target });
   assert.deepEqual(p0.resources, { holz: 4, stein: 4, nahrung: 4, erz: 5 });
   assert.equal(game.points('p0'), 3);
 
-  game.build('p0', { type: 'gut', tileId: target });
-  assert.equal(game.getTile(target).building.type, 'gut');
+  game.build('p0', { type: 'stadt', tileId: target });
+  assert.equal(game.getTile(target).building.type, 'stadt');
   assert.equal(game.points('p0'), 4);
 
   const far = game.tiles.find((t) => !t.building && !game.reachableByLand(t, 'p0') && game.isPlayable(t));
-  assert.throws(() => game.build('p0', { type: 'siedlung', tileId: far.id }), GameError);
+  assert.throws(() => game.build('p0', { type: 'dorf', tileId: far.id }), GameError);
 });
 
 test('Handel: Bank 3:1, mit Markt 2:1, Angebote zwischen Spielern', () => {
@@ -340,7 +340,7 @@ function waterGame() {
   game.round = 1;
   game.setupQueue = [];
   game.hasRolled = true;
-  game.getTile('0,0').building = { type: 'siedlung', owner: 'p0' };
+  game.getTile('0,0').building = { type: 'dorf', owner: 'p0' };
   game.players[0].resources = { holz: 20, stein: 20, nahrung: 20, erz: 20 };
   return game;
 }
@@ -348,28 +348,28 @@ function waterGame() {
 test('Wasser: Hafen nur an der Küste, Schiffe verbinden Inseln', () => {
   const game = waterGame();
   const valid = (type) => game.validTiles('p0')[type];
-  assert.deepEqual(valid('siedlung'), ['1,0']);
+  assert.deepEqual(valid('dorf'), ['1,0']);
   assert.deepEqual(valid('schiff'), []);
   assert.deepEqual(valid('hafen'), ['1,0']);
-  assert.ok(!valid('siedlung').includes('2,0'), 'Auf Wasser darf keine Siedlung stehen');
+  assert.ok(!valid('dorf').includes('2,0'), 'Auf Wasser darf kein Dorf stehen');
 
   game.build('p0', { type: 'hafen', tileId: '1,0' });
   assert.deepEqual(valid('schiff'), ['2,0']);
   game.build('p0', { type: 'schiff', tileId: '2,0' });
   assert.deepEqual(valid('schiff'), ['3,0']);
-  assert.ok(!valid('siedlung').includes('4,0'), 'Insel B ist noch nicht erreicht');
+  assert.ok(!valid('dorf').includes('4,0'), 'Insel B ist noch nicht erreicht');
   game.build('p0', { type: 'schiff', tileId: '3,0' });
-  assert.ok(valid('siedlung').includes('4,0'));
-  game.build('p0', { type: 'siedlung', tileId: '4,0' });
+  assert.ok(valid('dorf').includes('4,0'));
+  game.build('p0', { type: 'dorf', tileId: '4,0' });
   assert.equal(game.points('p0'), 3);
 });
 
 test('Wasser: Fischerei produziert Nahrung, wenn ihre Region gewürfelt wird', () => {
   const game = waterGame();
   assert.deepEqual(game.validTiles('p0').fischerei, []);
-  game.build('p0', { type: 'siedlung', tileId: '1,0' });
+  game.build('p0', { type: 'dorf', tileId: '1,0' });
   game.build('p0', { type: 'fischerei', tileId: '2,0' });
-  assert.ok(!game.validTiles('p0').siedlung.includes('4,0'), 'Fischerei verlängert die Reichweite nicht');
+  assert.ok(!game.validTiles('p0').dorf.includes('4,0'), 'Fischerei verlängert die Reichweite nicht');
 
   for (const t of game.tiles) if (t.id !== '2,0') t.building = null;
   const region = game.getTile('2,0').region;
@@ -426,10 +426,10 @@ test('Eroberung: nur als Variante, Wachturm und Limes nur dort baubar', () => {
 
 test('Eroberung: rekrutieren, verlegen, Limits', () => {
   const { game, put } = conquestGame();
-  put('0,0', 'siedlung', 'p0', 0);
-  put('1,0', 'gut', 'p0', 5);
-  put('5,0', 'siedlung', 'p1');
-  put('7,0', 'siedlung', 'p1');
+  put('0,0', 'dorf', 'p0', 0);
+  put('1,0', 'stadt', 'p0', 5);
+  put('5,0', 'dorf', 'p1');
+  put('7,0', 'dorf', 'p1');
   game.recruit('p0', { tileId: '0,0' });
   assert.equal(game.getTile('0,0').troops, 1);
   assert.equal(game.players[0].resources.erz, 19);
@@ -444,9 +444,9 @@ test('Eroberung: rekrutieren, verlegen, Limits', () => {
 
 test('Eroberung: Schonfrist und stationäre Truppen im Kampf', () => {
   const { game, put } = conquestGame();
-  put('2,0', 'siedlung', 'p0', 4);
-  const village = put('3,0', 'siedlung', 'p1', 0);
-  put('7,0', 'siedlung', 'p1');
+  put('2,0', 'dorf', 'p0', 4);
+  const village = put('3,0', 'dorf', 'p1', 0);
+  put('7,0', 'dorf', 'p1');
 
   game.round = 2;
   assert.throws(() => game.attack('p0', { from: '2,0', to: '3,0', count: 4 }), /ab Runde 3/);
@@ -464,9 +464,9 @@ test('Eroberung: Schonfrist und stationäre Truppen im Kampf', () => {
 
 test('Eroberung: Sieg übernimmt das Gebäude, Verluste nach Regel', () => {
   const { game, put } = conquestGame();
-  put('2,0', 'siedlung', 'p0', 5);
-  const city = put('3,0', 'gut', 'p1', 2);
-  put('7,0', 'siedlung', 'p1');
+  put('2,0', 'dorf', 'p0', 5);
+  const city = put('3,0', 'stadt', 'p1', 2);
+  put('7,0', 'dorf', 'p1');
   // 5 + 6 = 11 gegen 2 + 2 (Stadt stationär) + 1 = 5 -> Angreifer gewinnt, verliert ceil(2/2) = 1
   game.rng = scripted([6, 1]);
   game.attack('p0', { from: '2,0', to: '3,0', count: 5 });
@@ -476,7 +476,7 @@ test('Eroberung: Sieg übernimmt das Gebäude, Verluste nach Regel', () => {
   assert.equal(game.points('p0'), 3);
   assert.equal(game.points('p1'), 1);
   // Mit Vernichtung als Siegbedingung darf auch das letzte Gebäude fallen.
-  put('6,0', 'siedlung', 'p0', 3);
+  put('6,0', 'dorf', 'p0', 3);
   assert.equal(game.canAttack(game.getTile('6,0'), game.getTile('7,0'), 'p0'), true);
 });
 
@@ -484,9 +484,9 @@ test('Eroberung: Wer kein Landgebäude mehr hat, ist besiegt; der Letzte gewinnt
   const { game, put } = conquestGame();
   game.players.push({ id: 'p2', name: 'Dritter', color: '#000', resources: { holz: 0, stein: 0, nahrung: 0, erz: 0 },
     connected: true, removed: false, stats: game.players[0].stats && { ...game.players[0].stats, built: {} } });
-  put('2,0', 'siedlung', 'p0', 6);
-  put('3,0', 'siedlung', 'p1', 0);
-  put('7,0', 'siedlung', 'p2', 0);
+  put('2,0', 'dorf', 'p0', 6);
+  put('3,0', 'dorf', 'p1', 0);
+  put('7,0', 'dorf', 'p2', 0);
   game.rng = scripted([6, 1]);
   game.attack('p0', { from: '2,0', to: '3,0', count: 6 });
   assert.equal(game.players[1].eliminated, true);
@@ -498,8 +498,8 @@ test('Eroberung: Wer kein Landgebäude mehr hat, ist besiegt; der Letzte gewinnt
   const other = conquestGame();
   other.game.victory = { mode: 'vernichtung', target: 10, roundLimit: 0 };
   for (const id of ['0,0', '1,0', '2,0', '3,0']) other.put(id, 'monument', 'p0', 0);
-  other.put('2,3', 'siedlung', 'p0', 6);
-  other.put('3,3', 'siedlung', 'p1', 0);
+  other.put('2,3', 'dorf', 'p0', 6);
+  other.put('3,3', 'dorf', 'p1', 0);
   other.game.endTurn('p0');
   assert.equal(other.game.phase, 'main');
   other.game.hasRolled = true;
@@ -514,10 +514,10 @@ test('Eroberung: Wer kein Landgebäude mehr hat, ist besiegt; der Letzte gewinnt
 
 test('Eroberung: Wachturm stärkt Nachbarn, Limes schirmt Nachbarn ab', () => {
   const { game, put } = conquestGame();
-  put('2,0', 'siedlung', 'p0', 3);
-  put('3,0', 'siedlung', 'p1', 0);
+  put('2,0', 'dorf', 'p0', 3);
+  put('3,0', 'dorf', 'p1', 0);
   put('4,0', 'wachturm', 'p1', 0);
-  put('7,0', 'siedlung', 'p1');
+  put('7,0', 'dorf', 'p1');
   assert.deepEqual(game.defenseOf(game.getTile('3,0')), { troops: 0, stationary: 1, tower: 1 });
   assert.deepEqual(game.defenseOf(game.getTile('4,0')), { troops: 0, stationary: 2, tower: 0 });
 
@@ -526,7 +526,7 @@ test('Eroberung: Wachturm stärkt Nachbarn, Limes schirmt Nachbarn ab', () => {
   assert.equal(game.canAttack(game.getTile('2,0'), game.getTile('3,0'), 'p0'), false);
   const options = game.militaryOptions('p0');
   assert.deepEqual(options.sources['2,0'].attack, []);
-  put('3,0', 'siedlung', 'p0', 3);
+  put('3,0', 'dorf', 'p0', 3);
   assert.deepEqual(game.militaryOptions('p0').sources['3,0'].attack, ['4,0']);
 });
 
@@ -544,8 +544,8 @@ test('Eroberung: Angriffe über eigene Schiffe', () => {
   game.players[0].resources = { holz: 5, stein: 5, nahrung: 5, erz: 5 };
   game.getTile('0,0').building = { type: 'hafen', owner: 'p0' };
   game.getTile('0,0').troops = 3;
-  game.getTile('2,0').building = { type: 'siedlung', owner: 'p1' };
-  game.getTile('-3,4').building = { type: 'siedlung', owner: 'p1' };
+  game.getTile('2,0').building = { type: 'dorf', owner: 'p1' };
+  game.getTile('-3,4').building = { type: 'dorf', owner: 'p1' };
   assert.equal(game.canAttack(game.getTile('0,0'), game.getTile('2,0'), 'p0'), false);
   game.getTile('1,0').building = { type: 'schiff', owner: 'p0' };
   assert.equal(game.canAttack(game.getTile('0,0'), game.getTile('2,0'), 'p0'), true);
@@ -714,7 +714,7 @@ test('Teams: Punkte werden addiert, Ziel wächst mit der Teamgröße', () => {
   game.roll(current.id);
   game.endTurn(current.id);
   assert.equal(game.phase, 'main');
-  free[5].building = { type: 'siedlung', owner: 'p0' }; // 20 Punkte
+  free[5].building = { type: 'dorf', owner: 'p0' }; // 20 Punkte
   while (game.teamOf(game.currentPlayer().id) !== 'team:A') {
     game.roll(game.currentPlayer().id);
     game.endTurn(game.currentPlayer().id);
@@ -750,11 +750,11 @@ test('Teams: keine Angriffe auf Partner, Verlegen zum Partner, Angriff über Par
   const put = (id, type, owner, troops = 0) => {
     Object.assign(game.getTile(id), { building: { type, owner }, troops });
   };
-  put('0,0', 'siedlung', 'p0', 4);
+  put('0,0', 'dorf', 'p0', 4);
   put('1,0', 'hafen', 'p1', 0);
   put('2,0', 'schiff', 'p1');
-  put('3,0', 'siedlung', 'p2', 0);
-  put('-4,4', 'siedlung', 'p2', 0);
+  put('3,0', 'dorf', 'p2', 0);
+  put('-4,4', 'dorf', 'p2', 0);
   const from = game.getTile('0,0');
   assert.equal(game.canAttack(from, game.getTile('1,0'), 'p0'), false, 'Partner nicht angreifbar');
   assert.equal(game.canMove(from, game.getTile('1,0'), 'p0'), true, 'Verlegen zum Partner');
@@ -798,11 +798,27 @@ test('Teams: ein Team ist erst besiegt, wenn alle Mitglieder besiegt sind', () =
   game.teamsEnabled = true;
   game.getPlayer('p0').team = 'A';
   game.getPlayer('p1').team = 'B';
-  put('2,0', 'siedlung', 'p0', 6);
-  put('3,0', 'siedlung', 'p1', 0);
-  put('7,0', 'siedlung', 'p2', 0);
+  put('2,0', 'dorf', 'p0', 6);
+  put('3,0', 'dorf', 'p1', 0);
+  put('7,0', 'dorf', 'p2', 0);
   game.rng = scripted([6, 1]);
   game.attack('p0', { from: '2,0', to: '3,0', count: 6 });
   assert.equal(game.getPlayer('p1').eliminated, true);
   assert.equal(game.phase, 'main', 'Teampartner p2 ist noch im Spiel');
+});
+
+test('Sicherung mit alten Gebäudenamen (siedlung/gut) wird beim Laden umgerechnet', () => {
+  const game = newGame(2);
+  game.start('p0');
+  finishSetup(game);
+  const snap = JSON.parse(JSON.stringify(game.snapshot()));
+  // So sah eine Sicherung vor F-011 aus
+  snap.version = 3;
+  for (const t of snap.tiles) if (t.building) t.building.type = 'siedlung';
+  snap.tiles.find((t) => t.building).building.type = 'gut';
+  snap.players[0].stats.built = { siedlung: 2, gut: 1 };
+  const restored = Game.restore(snap, seeded(1), { clock: fakeClock() });
+  const types = restored.tiles.filter((t) => t.building).map((t) => t.building.type);
+  assert.ok(types.includes('stadt') && types.includes('dorf') && !types.includes('siedlung') && !types.includes('gut'));
+  assert.deepEqual(restored.players[0].stats.built, { dorf: 2, stadt: 1 });
 });

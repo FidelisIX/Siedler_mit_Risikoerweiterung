@@ -9,8 +9,8 @@ const games = [
   {
     endedAt: '2026-10-01T10:00:00Z', variant: 'klassisch', rounds: 12, map: { kind: 'random', name: 'Zufällige Inselgruppe' },
     players: [
-      { name: 'Anna', points: 14, stats: stats({ built: { siedlung: 6 }, trades: 3 }) },
-      { name: 'Ben', points: 11, stats: stats({ built: { siedlung: 4 } }) },
+      { name: 'Anna', points: 14, stats: stats({ built: { dorf: 6 }, trades: 3 }) },
+      { name: 'Ben', points: 11, stats: stats({ built: { dorf: 4 } }) },
     ],
   },
   {

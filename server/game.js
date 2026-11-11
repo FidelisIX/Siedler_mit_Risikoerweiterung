@@ -7,8 +7,8 @@ const TERRAIN_RESOURCE = { wald: 'holz', steinbruch: 'stein', acker: 'nahrung', 
 // Geländewürfel: vier Geländeseiten und zwei Sterne (Stern = gewürfelte Region produziert doppelt).
 const TERRAIN_DIE = ['wald', 'steinbruch', 'acker', 'mine', 'stern', 'stern'];
 const BUILDINGS = {
-  siedlung: { name: 'Siedlung', article: 'eine', cost: { holz: 1, stein: 1, nahrung: 1 }, points: 1, production: 1 },
-  gut: { name: 'Gutshof', article: 'einen', cost: { nahrung: 2, erz: 2 }, points: 2, production: 2 },
+  dorf: { name: 'Dorf', article: 'ein', cost: { holz: 1, stein: 1, nahrung: 1 }, points: 1, production: 1 },
+  stadt: { name: 'Stadt', article: 'eine', cost: { nahrung: 2, erz: 2 }, points: 2, production: 2 },
   hafen: { name: 'Hafen', article: 'einen', cost: { holz: 2, stein: 1, nahrung: 1 }, points: 1, production: 1 },
   markt: { name: 'Markt', article: 'einen', cost: { holz: 2, stein: 1 }, points: 1, production: 0 },
   monument: { name: 'Monument', article: 'ein', cost: { holz: 1, stein: 2, nahrung: 1, erz: 2 }, points: 3, production: 0 },
@@ -38,7 +38,9 @@ const MARKT_RATE = 2;
 const LOG_LIMIT = 60;
 const LAND_PER_PLAYER = 5;
 const HOST_HANDOVER_MS = 15_000; // so lange darf ein getrennter Gastgeber zurückkommen
-const SNAPSHOT_VERSION = 3;
+const SNAPSHOT_VERSION = 4;
+// Ältere Sicherungen mit den früheren Gebäudenamen (bis F-011) werden beim Laden umgerechnet.
+const LEGACY_BUILDING_TYPES = { siedlung: 'dorf', gut: 'stadt' };
 const REAL_CLOCK = {
   now: () => Date.now(),
   setTimeout: (fn, ms) => {
@@ -68,7 +70,7 @@ const CONQUEST = {
   graceRounds: 2, // in diesen ersten Runden sind keine Angriffe erlaubt
   // Stationäre Truppen: feste Besatzung jedes Landgebäudes. Sie verteidigen nur, ziehen nie
   // mit und gehen im Kampf nicht verloren.
-  stationary: { siedlung: 1, gut: 2, hafen: 1, markt: 1, monument: 1, wachturm: 2, limes: 3 },
+  stationary: { dorf: 1, stadt: 2, hafen: 1, markt: 1, monument: 1, wachturm: 2, limes: 3 },
   towerBonus: 1, // Wachturm: +1 Verteidigung für eigene Nachbargebäude (nicht stapelbar)
 };
 
@@ -102,6 +104,18 @@ function emptyStats() {
 
 function formatAmounts(amounts) {
   return RESOURCES.filter((res) => amounts[res] > 0).map((res) => `${amounts[res]} ${res}`).join(', ');
+}
+
+function migrateBuildingTypes(snap) {
+  const rename = (type) => LEGACY_BUILDING_TYPES[type] || type;
+  for (const tile of snap.tiles || []) if (tile.building) tile.building.type = rename(tile.building.type);
+  for (const p of snap.players || []) {
+    if (p.stats && p.stats.built) {
+      p.stats.built = Object.fromEntries(Object.entries(p.stats.built).map(([type, n]) => [rename(type), n]));
+    }
+  }
+  if (snap.lastBattle) snap.lastBattle.building = rename(snap.lastBattle.building);
+  return { ...snap, version: SNAPSHOT_VERSION };
 }
 
 class Game {
@@ -281,7 +295,7 @@ class Game {
     return tile.terrain !== 'wasser' && this.neighbors(tile).some((n) => n.terrain === 'wasser');
   }
 
-  // Start-Siedlungen halten Abstand zueinander; ist kein solches Feld mehr frei, entfällt der Abstand.
+  // Start-Dörfer halten Abstand zueinander; ist kein solches Feld mehr frei, entfällt der Abstand.
   startCandidates() {
     const free = this.tiles.filter((t) => !t.building && this.isPlayable(t));
     const spaced = free.filter((t) => this.neighbors(t).every((n) => !n.building));
@@ -290,12 +304,12 @@ class Game {
 
   isValidBuild(tile, playerId, type) {
     if (!BUILDINGS[type] || (BUILDINGS[type].conquestOnly && !this.isConquest())) return false;
-    if (type === 'gut') {
-      return !!tile.building && tile.building.owner === playerId && tile.building.type === 'siedlung';
+    if (type === 'stadt') {
+      return !!tile.building && tile.building.owner === playerId && tile.building.type === 'dorf';
     }
     if (tile.building) return false;
     switch (type) {
-      case 'siedlung':
+      case 'dorf':
         return this.isPlayable(tile) && this.reachableByLand(tile, playerId);
       case 'hafen':
         return this.isPlayable(tile) && this.isCoastal(tile) && this.reachableByLand(tile, playerId);
@@ -554,11 +568,11 @@ class Game {
     });
     this.rematchVotes.clear();
     this.resetTurnLimits();
-    // Schlangenreihenfolge: 1..n, dann n..1 — jeder setzt zwei Start-Siedlungen.
+    // Schlangenreihenfolge: 1..n, dann n..1 — jeder setzt zwei Start-Dörfer.
     const order = this.players.map((_, i) => i);
     this.setupQueue = [...order, ...order.slice().reverse()];
     this.phase = 'setup';
-    this.addLog(`Das Spiel beginnt. Ziel: ${this.victoryText()}. Jeder setzt zwei Start-Siedlungen.`);
+    this.addLog(`Das Spiel beginnt. Ziel: ${this.victoryText()}. Jeder setzt zwei Start-Dörfer.`);
   }
 
   // ---------- Aufbauphase ----------
@@ -567,11 +581,11 @@ class Game {
     const player = this.requireTurn(playerId, 'setup');
     const tile = this.getTile(payload && payload.tileId);
     if (!this.startCandidates().includes(tile)) {
-      throw new GameError('Start-Siedlungen brauchen ein freies Landfeld ohne Nachbargebäude (kein Ödland).');
+      throw new GameError('Start-Dörfer brauchen ein freies Landfeld ohne Nachbargebäude (kein Ödland).');
     }
-    tile.building = { type: 'siedlung', owner: player.id };
+    tile.building = { type: 'dorf', owner: player.id };
     if (this.isConquest()) tile.troops = 1;
-    this.addLog(`${player.name} gründet eine Start-Siedlung.`);
+    this.addLog(`${player.name} gründet ein Start-Dorf.`);
     this.setupQueue.shift();
     this.advanceSetup();
   }
@@ -992,7 +1006,7 @@ class Game {
     if (this.phase === 'setup') {
       const options = this.startCandidates();
       const tile = options[Math.floor(this.rng() * options.length)];
-      this.addLog(`Start-Siedlung für ${current.name} wird automatisch gesetzt.`);
+      this.addLog(`Start-Dorf für ${current.name} wird automatisch gesetzt.`);
       this.placeStart(current.id, { tileId: tile.id });
     } else if (this.phase === 'main') {
       if (!this.hasRolled) this.roll(current.id);
@@ -1111,7 +1125,8 @@ class Game {
   }
 
   static restore(snap, rng = Math.random, options = {}) {
-    if (!snap || snap.version !== SNAPSHOT_VERSION) return null;
+    if (!snap || (snap.version !== SNAPSHOT_VERSION && snap.version !== 3)) return null;
+    if (snap.version === 3) snap = migrateBuildingTypes(snap);
     const game = new Game(snap.code, rng, options);
     const { version, savedAt, rematchVotes, ...fields } = snap;
     Object.assign(game, fields);

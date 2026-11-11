@@ -16,12 +16,6 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 
 ## Offen
 
-### F-011: Eigene Gebäude „Dorf“ und „Stadt“?
-- **Gewünscht:** 2026-10-30, Simon (aus F-006)
-- **Status:** Offene Fragen
-- **Beschreibung:** In F-006 wurden „Dorf“ als Siedlung und „Stadt“ als Gutshof umgesetzt.
-- **Offene Fragen:** Sollen die Gebäude im Spiel so heißen, oder braucht es eigene Gebäude „Dorf“ und „Stadt“?
-
 ### F-010: Limes als durchgehende Mauer?
 - **Gewünscht:** 2026-10-30, Simon (aus F-006)
 - **Status:** Offene Fragen
@@ -43,6 +37,14 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 ---
 
 ## Umgesetzt
+
+### F-011: Gebäude heißen „Dorf“ und „Stadt“
+- **Gewünscht:** 2026-10-30, Simon (aus F-006); entschieden 2026-11-11: Variante 1 (Umbenennen)
+- **Status:** Umgesetzt
+- **Umsetzung:** Siedlung heißt jetzt **Dorf**, Gutshof heißt **Stadt** (Ausbau eines Dorfes, neues Symbol 🏙️).
+  Kosten, Punkte, Produktion und stationäre Truppen unverändert. Auch intern heißen die Gebäude jetzt `dorf` und
+  `stadt` (Wunsch Simon). Raumsicherungen mit den alten Bezeichnern werden beim Laden umgerechnet; die Statistik zählt
+  Gebäude nur zusammen und ist daher nicht betroffen.
 
 ### F-013: Voreingestellte Teams (z. B. 2 gegen 2)
 - **Gewünscht:** 2026-11-11, Simon
@@ -84,9 +86,9 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 ### F-006: Stationäre Truppen, Wachturm und Limes
 - **Gewünscht:** 2026-10-30, Simon
 - **Status:** Umgesetzt
-- **Umsetzung:** Jedes Landgebäude hat eine feste Besatzung (Dorf 1, Stadt/Gutshof 2, Wachturm 2, Limes 3, sonst 1).
+- **Umsetzung:** Jedes Landgebäude hat eine feste Besatzung (Dorf 1, Stadt 2, Wachturm 2, Limes 3, sonst 1).
   Wachturm: +1 Verteidigung für eigene Nachbargebäude. Limes: schirmt eigene Nachbargebäude ab, bis er fällt.
-  Offene Fragen dazu: F-010, F-011.
+  Offene Fragen dazu: F-010; F-011 umgesetzt.
 
 ### F-005: Spielvariante „Eroberung“ mit Truppen und Kämpfen
 - **Gewünscht:** 2026-10-30, Simon

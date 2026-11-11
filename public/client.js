@@ -6,7 +6,7 @@ const RESOURCES = ['holz', 'stein', 'nahrung', 'erz'];
 const RESOURCE_LABEL = { holz: '🪵 Holz', stein: '🧱 Stein', nahrung: '🌾 Nahrung', erz: '⛓️ Erz' };
 const FACE_LABEL = { wald: '🌲 Wald', steinbruch: '🪨 Steinbruch', acker: '🌾 Acker', mine: '⛏️ Mine', stern: '⭐ Stern' };
 const BUILDING_ICON = {
-  siedlung: '🏠', gut: '🏡', hafen: '⚓', markt: '⚖️', monument: '🏛️', schiff: '⛵', fischerei: '🐟', wachturm: '🗼', limes: '🧱',
+  dorf: '🏠', stadt: '🏙️', hafen: '⚓', markt: '⚖️', monument: '🏛️', schiff: '⛵', fischerei: '🐟', wachturm: '🗼', limes: '🧱',
 };
 const MIL_ACTION = { attack: 'attack', move: 'moveTroops' };
 const { TERRAIN, SIZE: HEX_SIZE, svg } = Hex;
@@ -419,7 +419,7 @@ function renderActions() {
   if (state.phase === 'ended' || !current) {
     hint.textContent = 'Das Spiel ist beendet.';
   } else if (state.phase === 'setup') {
-    hint.textContent = myTurn ? 'Setze eine Start-Siedlung auf ein markiertes Feld.' : `${current.name} setzt eine Start-Siedlung …`;
+    hint.textContent = myTurn ? 'Setze ein Start-Dorf auf ein markiertes Feld.' : `${current.name} setzt ein Start-Dorf …`;
   } else if (!myTurn) {
     hint.textContent = `${current.name} ist am Zug.`;
   } else if (!state.hasRolled) {

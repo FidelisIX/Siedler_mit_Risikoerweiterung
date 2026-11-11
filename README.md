@@ -20,7 +20,7 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
   - **Kontinent:** zusammenhängende Landmasse ohne Wasser.
   - **Vorlagen:** Zwillingsinseln, Lagune, Inselkette.
   - **Eigene Karten** aus dem Karteneditor.
-- **Aufbau:** Jeder setzt in Schlangenreihenfolge zwei Start-Siedlungen auf freie Landfelder ohne Nachbargebäude.
+- **Aufbau:** Jeder setzt in Schlangenreihenfolge zwei Start-Dörfer auf freie Landfelder ohne Nachbargebäude.
   Eine Karte braucht mindestens 5 bebaubare Landfelder pro Spieler.
   Startrohstoffe: 2 Holz, 2 Stein, 2 Nahrung, 1 Erz.
 - **Würfeln:** Der aktive Spieler wirft den Regionswürfel (1–6) und den Geländewürfel
@@ -32,8 +32,8 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
 
   | Gebäude   | Kosten                              | Punkte | Wo?                                          | Wirkung                       |
   |-----------|-------------------------------------|--------|----------------------------------------------|-------------------------------|
-  | Siedlung  | 1 Holz, 1 Stein, 1 Nahrung          | 1      | Land                                         | produziert 1                  |
-  | Gutshof   | 2 Nahrung, 2 Erz                    | 2      | Ausbau einer eigenen Siedlung                | produziert 2                  |
+  | Dorf      | 1 Holz, 1 Stein, 1 Nahrung          | 1      | Land                                         | produziert 1                  |
+  | Stadt     | 2 Nahrung, 2 Erz                    | 2      | Ausbau eines eigenen Dorfes                  | produziert 2                  |
   | Hafen     | 2 Holz, 1 Stein, 1 Nahrung          | 1      | Land an der Küste                            | produziert 1, Ausgangspunkt für Schiffe |
   | Markt     | 2 Holz, 1 Stein                     | 1      | Land oder Ödland                             | Banktausch 2:1 statt 3:1      |
   | Monument  | 1 Holz, 2 Stein, 1 Nahrung, 2 Erz   | 3      | Land oder Ödland                             | –                             |
@@ -78,13 +78,13 @@ In der Lobby stellt der Gastgeber **„Feste Teams“** ein (bis zu 3 Teams: A, 
 
 Der Gastgeber wählt in der Lobby die Variante **Klassisch** oder **Eroberung**. In der Eroberung gilt zusätzlich:
 
-- **Truppen** stehen auf eigenen Landgebäuden (max. 6 pro Feld). Jede Start-Siedlung beginnt mit 1 Truppe.
+- **Truppen** stehen auf eigenen Landgebäuden (max. 6 pro Feld). Jedes Start-Dorf beginnt mit 1 Truppe.
   - **Rekrutieren:** 1 Nahrung + 1 Erz für 1 Truppe auf einem eigenen Landgebäude.
   - **Verlegen:** 1× pro Zug beliebig viele Truppen zu einem erreichbaren eigenen Gebäude.
   - **Angreifen:** ab Runde 3, max. 2× pro Zug, je 1 Nahrung. Ziel ist ein fremdes Landgebäude, das an das
     Ausgangsfeld grenzt oder über eine Kette **eigener Schiffe** erreichbar ist.
 - **Stationäre Truppen:** Jedes Landgebäude hat eine feste Besatzung, die nur verteidigt, nie mitzieht und
-  nicht verloren geht: Siedlung (Dorf) 1, Gutshof (Stadt) 2, Hafen/Markt/Monument 1, Wachturm 2, Limes 3.
+  nicht verloren geht: Dorf 1, Stadt 2, Hafen/Markt/Monument 1, Wachturm 2, Limes 3.
 - **Verteidigungsgebäude** (nur in dieser Variante):
 
   | Gebäude  | Kosten           | Punkte | Wirkung                                                                 |
