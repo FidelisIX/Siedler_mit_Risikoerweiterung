@@ -332,19 +332,19 @@ function renderBoard() {
     const g = svg('g', { class: classes.join(' ') });
     const title = svg('title', {}, tileTitle(tile, terrain));
     g.append(title, svg('polygon', { points: Hex.corners(x, y), fill: terrain.color }));
-    if (tile.region) g.append(svg('text', { x, y: y - HEX_SIZE * 0.55, 'text-anchor': 'middle', class: 'region-label' }, tile.region));
+    if (tile.region) g.append(svg('text', { x, y: y - HEX_SIZE * 0.52, 'text-anchor': 'middle', class: 'region-label' }, tile.region));
     if (tile.building) {
       const owner = playerById(tile.building.owner);
-      g.append(svg('circle', { cx: x, cy: y + 4, r: HEX_SIZE * 0.45, fill: owner.color, stroke: '#fff', 'stroke-width': 2 }));
-      g.append(svg('text', { x, y: y + 12, 'text-anchor': 'middle', 'font-size': 22 }, BUILDING_ICON[tile.building.type]));
+      g.append(svg('circle', { cx: x, cy: y + 6, r: HEX_SIZE * 0.58, fill: owner.color, stroke: '#fff', 'stroke-width': 3 }));
+      g.append(svg('text', { x, y: y + 17, 'text-anchor': 'middle', 'font-size': 32, class: 'icon' }, BUILDING_ICON[tile.building.type]));
       if (state.conquest && tile.troops > 0) {
-        const bx = x + HEX_SIZE * 0.5;
-        const by = y - HEX_SIZE * 0.3;
-        g.append(svg('circle', { cx: bx, cy: by, r: 12, fill: '#212529', stroke: owner.color, 'stroke-width': 3 }));
-        g.append(svg('text', { x: bx, y: by + 5, 'text-anchor': 'middle', class: 'troop-label' }, tile.troops));
+        const bx = x + HEX_SIZE * 0.58;
+        const by = y - HEX_SIZE * 0.4;
+        g.append(svg('circle', { cx: bx, cy: by, r: 15, fill: '#212529', stroke: owner.color, 'stroke-width': 3 }));
+        g.append(svg('text', { x: bx, y: by + 6, 'text-anchor': 'middle', class: 'troop-label' }, tile.troops));
       }
     } else if (terrain.icon) {
-      g.append(svg('text', { x, y: y + 12, 'text-anchor': 'middle', 'font-size': 24, opacity: 0.85 }, terrain.icon));
+      g.append(svg('text', { x, y: y + 17, 'text-anchor': 'middle', 'font-size': 36, class: 'icon' }, terrain.icon));
     }
     if (targets.has(tile.id)) g.addEventListener('click', () => onTileClick(tile));
     return g;
@@ -404,7 +404,8 @@ function renderResources() {
   const res = me().resources;
   $('resources').replaceChildren(...RESOURCES.map((r) => {
     const box = el('div', { class: 'resource' });
-    box.append(el('b', {}, res[r]), el('span', {}, RESOURCE_LABEL[r]));
+    const [icon, name] = RESOURCE_LABEL[r].split(' ');
+    box.append(el('span', { class: 'res-icon', 'aria-hidden': 'true' }, icon), el('b', {}, res[r]), el('span', {}, name));
     return box;
   }));
 }
@@ -441,7 +442,8 @@ function renderActions() {
 
   $('build-buttons').replaceChildren(...Object.entries(state.buildings).map(([type, def]) => {
     const btn = el('button', { class: buildMode === type ? 'active' : 'secondary' });
-    btn.append(document.createTextNode(`${BUILDING_ICON[type]} ${def.name} (${def.points} P)`), el('small', {}, formatCost(def.cost)));
+    btn.append(el('span', { class: 'btn-icon', 'aria-hidden': 'true' }, BUILDING_ICON[type]),
+      el('span', {}, `${def.name} (${def.points} P)`), el('small', {}, formatCost(def.cost)));
     const affordable = RESOURCES.every((r) => res[r] >= (def.cost[r] || 0));
     const hasTarget = state.validTiles && state.validTiles[type] && state.validTiles[type].length > 0;
     btn.disabled = !mainTurn || !state.hasRolled || !affordable || !hasTarget;

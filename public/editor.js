@@ -88,7 +88,7 @@ function render() {
       'stroke-width': 2,
     }));
     if (terrain && Hex.TERRAIN[terrain].icon) {
-      g.append(Hex.svg('text', { x, y: y + 10, 'text-anchor': 'middle', 'font-size': 22 }, Hex.TERRAIN[terrain].icon));
+      g.append(Hex.svg('text', { x, y: y + 15, 'text-anchor': 'middle', 'font-size': 32 }, Hex.TERRAIN[terrain].icon));
     }
     return g;
   }));

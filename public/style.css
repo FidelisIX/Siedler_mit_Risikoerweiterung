@@ -91,17 +91,20 @@ button.active { outline: 3px solid #fab005; }
   display: flex; gap: 8px;
 }
 .die {
-  background: #fff; border-radius: 8px; padding: 6px 10px; font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .3); font-size: .9rem;
+  background: #fff; border-radius: 8px; padding: 8px 12px; font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3); font-size: 1.05rem;
 }
 
 .resources { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .resource { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 6px; text-align: center; font-size: .8rem; }
-.resource b { display: block; font-size: 1.2rem; }
+.resource b { display: block; font-size: 1.3rem; }
+.res-icon { display: block; font-size: 1.8rem; line-height: 1.1; }
 
 .hint { font-size: .9rem; }
 .build-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.build-buttons button { font-size: .8rem; padding: 8px; text-align: left; }
+.build-buttons button { font-size: .8rem; padding: 8px; text-align: left; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+.build-buttons small { grid-column: 2; }
+.btn-icon { grid-row: span 2; font-size: 1.7rem; line-height: 1; }
 .build-buttons small { display: block; opacity: .85; font-size: .7rem; }
 
 .row { display: flex; gap: 6px; align-items: center; }
@@ -120,15 +123,20 @@ button.active { outline: 3px solid #fab005; }
 .tile.hit polygon { stroke: #fab005; stroke-width: 4; }
 .tile text { pointer-events: none; user-select: none; }
 .tile.water polygon { stroke: #1d4f75; }
-.tile.water .tile.selected polygon { stroke: #ff6b6b; stroke-width: 5; }
+.tile.selected polygon { stroke: #ff6b6b; stroke-width: 5; }
 .tile.battle polygon { stroke: #e03131; stroke-width: 4; }
-.troop-label { font-size: 14px; font-weight: 700; fill: #fff; }
+.troop-label { font-size: 19px; font-weight: 800; fill: #fff; }
 .battle-info { max-width: 520px; font-weight: 500; }
-.region-label { fill: rgba(255, 255, 255, .55); }
+.tile.water .region-label { fill: #fff; stroke: rgba(11, 34, 54, .85); }
 .map-preview { width: 100%; height: 180px; background: var(--sea); border-radius: 8px; }
 .small-text { font-size: .8rem; margin: 0; }
 .link { color: var(--accent); font-size: .9rem; }
-.region-label { font-size: 11px; fill: rgba(0, 0, 0, .55); font-weight: 700; }
+.region-label {
+  font-size: 15px; font-weight: 800; fill: #1d232b;
+  paint-order: stroke; stroke: rgba(255, 255, 255, .85); stroke-width: 3px; stroke-linejoin: round;
+}
+/* Emojis auf farbigem Grund: leichter Schatten für Kontrast */
+.tile .icon { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .55)); }
 
 .toast {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -140,7 +148,10 @@ button.active { outline: 3px solid #fab005; }
 @media (max-width: 860px) {
   .layout { flex-direction: column; padding: 8px 16px; }
   .sidebar { width: 100%; max-height: none; }
-  #board { height: 60vh; }
+  /* Karte auf dem Handy größer darstellen und im Kartenbereich verschiebbar machen */
+  .board-wrap { width: 100%; height: 65vh; overflow: auto; border-radius: 12px; background: var(--sea); }
+  #board { width: 760px; height: 100%; min-height: 520px; border-radius: 0; }
+  .dice { position: sticky; top: 8px; left: 8px; margin-bottom: -48px; z-index: 1; width: max-content; }
 }
 
 /* Karteneditor */
@@ -175,6 +186,6 @@ th { font-weight: 600; color: var(--muted); }
 /* Teams */
 .team-select { padding: 2px 4px; font-size: .8rem; margin-left: auto; }
 .player-list li { flex-wrap: wrap; }
-.ally-resources { flex-basis: 100%; padding-left: 22px; font-size: .75rem; color: var(--muted); }
+.ally-resources { flex-basis: 100%; padding-left: 22px; font-size: .9rem; color: var(--muted); }
 .team-scores { display: flex; flex-wrap: wrap; gap: 6px; }
 .team-score { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: .8rem; font-weight: 600; }
