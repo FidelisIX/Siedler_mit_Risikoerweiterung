@@ -31,12 +31,26 @@ Wünsche und Ideen für neue Funktionen. Neue Einträge oben bei „Offen“ erg
 ### F-008: Weitere Raum-Features aus Ortsraten
 - **Gewünscht:** 2026-10-30, Simon
 - **Status:** Idee (bewusst zurückgestellt)
-- **Beschreibung:** Countdown vor Spielbeginn, „Alleine spielen“ (bräuchte Computer-Gegner),
-  mehr als 6 Spieler (bräuchte größere Karten).
+- **Beschreibung:** Countdown vor Spielbeginn, „Alleine spielen“ (mit den Computergegnern aus F-014 jetzt
+  möglich: Raum erstellen und Bots hinzufügen), mehr als 6 Spieler (bräuchte größere Karten).
 
 ---
 
 ## Umgesetzt
+
+### F-014: Computergegner zum automatisierten Testen
+- **Gewünscht:** 2026-11-12, Simon („keine besondere Strategie, sollen dienen, um Spielfunktionen automatisiert
+  testen zu können“)
+- **Status:** Umgesetzt
+- **Umsetzung:**
+  - `server/bot.js`: zufällige, gültige Züge über die normalen Spielaktionen (bauen, Banktausch, Angebote,
+    rekrutieren, verlegen, angreifen); ungültige Bot-Aktionen werden gezählt statt das Spiel abzubrechen.
+  - Lobby: „🤖 Computergegner hinzufügen“ (nur Gastgeber), Entfernen über ✕. Bots sind nie Gastgeber, stimmen nicht
+    ab und erscheinen nicht in der Statistik.
+  - `npm run simulate`: Testpartien nur mit Bots über 8 Spielaufbauten × 5 Karten mit Prüfung des Spielzustands nach
+    jedem Schritt und Sicherung/Wiederherstellung. Erster Lauf: 120 Partien in ca. 4 s; gefunden und behoben wurde
+    dabei ein Fehler im Bot selbst (Verlegen über die Obergrenze von 6 Truppen), keine Regelverletzung im Spiel.
+  - Tests: `test/bots.test.js`, `test/server.test.js` (Bots spielen über den Server von selbst).
 
 ### F-011: Gebäude heißen „Dorf“ und „Stadt“
 - **Gewünscht:** 2026-10-30, Simon (aus F-006); entschieden 2026-11-11: Variante 1 (Umbenennen)

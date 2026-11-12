@@ -197,6 +197,7 @@ function teamSelect(player) {
   return select;
 }
 
+$('add-bot').onclick = () => act('addBot');
 $('teams-enabled').onchange = () => act('setTeamsEnabled', { enabled: $('teams-enabled').value === 'an' });
 
 function renderLobby() {
@@ -206,7 +207,7 @@ function renderLobby() {
     const li = el('li');
     const dot = el('span', { class: 'dot' });
     dot.style.background = p.color;
-    li.append(dot, el('span', {}, p.name + (p.id === state.you ? ' (du)' : '') + (p.connected ? '' : ' – getrennt')));
+    li.append(dot, el('span', {}, (p.bot ? '🤖 ' : '') + p.name + (p.id === state.you ? ' (du)' : '') + (p.connected ? '' : ' – getrennt')));
     if (p.id === state.hostId) li.append(el('span', { class: 'meta' }, '👑 Gastgeber'));
     if (state.teamsEnabled) li.append(teamSelect(p));
     const kick = kickButton(p);
@@ -233,6 +234,8 @@ function renderLobby() {
   $('victory-info').textContent = `Ziel: ${state.victoryText}.`
     + (v.roundLimit ? ' Nach dem Rundenlimit gewinnt, wer die meisten Punkte hat.' : ' Ohne Limit wird nach 150 Runden abgestimmt, ob es weitergeht, danach alle 25 Runden.');
   $('start').disabled = !isHost || state.players.length < 2;
+  $('add-bot').classList.toggle('hidden', !isHost);
+  $('add-bot').disabled = state.players.length >= 6;
 
   const mapSelect = $('map');
   const options = state.mapOptions.map((o) => [`${o.kind}:${o.id || ''}`, o.name]);
@@ -378,7 +381,7 @@ function renderPlayers() {
     const dot = el('span', { class: 'dot' });
     dot.style.background = p.color;
     const status = p.removed ? ' – entfernt' : p.eliminated ? ' – 💀 besiegt' : p.connected ? '' : ' – getrennt';
-    const team = p.team ? `[${p.team}] ` : '';
+    const team = `${p.team ? `[${p.team}] ` : ''}${p.bot ? '🤖 ' : ''}`;
     li.append(dot, el('span', {}, `${team}${p.id === state.hostId ? '👑 ' : ''}${p.name}${p.id === state.you ? ' (du)' : ''}${status}`));
     li.append(el('span', { class: 'meta' }, `${p.points} Pkt · ${p.resourceCount} Rohst.${p.hasMarkt ? ' · ⚖️' : ''}`));
     // Rohstoffe von Teammitgliedern sind sichtbar

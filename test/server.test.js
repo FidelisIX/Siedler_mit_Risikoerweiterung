@@ -127,3 +127,35 @@ test('GitHub-Speicher: wiederholte Raumsicherungen fragen die sha nur einmal ab'
   await gh.saveRoom('ABCDE', { savedAt: 'z' });
   assert.deepEqual(calls, ['GET', 'PUT', 'PUT', 'PUT']);
 });
+
+test('Server: Computergegner spielen von selbst, bis ein Mensch dran ist', async () => {
+  const app = createServer({ store: new MemoryStore(), botDelayMs: 1 });
+  await new Promise((resolve) => app.server.listen(0, resolve));
+  const url = `http://localhost:${app.server.address().port}`;
+  const anna = await client(url);
+  const { code } = await call(anna, 'createRoom', { name: 'Anna', token: 'token-anna-123' });
+  assert.deepEqual(await call(anna, 'action', { type: 'addBot' }), { ok: true });
+  await call(anna, 'action', { type: 'addBot' });
+  await call(anna, 'action', { type: 'start' });
+  await tick();
+  const placeStart = async () => {
+    const s = anna.states.at(-1);
+    await call(anna, 'action', { type: 'placeStart', payload: { tileId: s.validTiles.start[0] } });
+  };
+  // Aufbau: Anna, Bot, Bot, Bot, Bot, Anna – die Bots setzen selbst
+  await placeStart();
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(anna.states.at(-1).currentPlayerId, anna.states.at(-1).you, 'Anna ist nach den Bots wieder dran');
+  await placeStart();
+  await call(anna, 'action', { type: 'roll' });
+  await call(anna, 'action', { type: 'endTurn' });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const state = anna.states.at(-1);
+  assert.equal(state.round, 2, 'beide Bots haben ihren Zug gespielt');
+  assert.equal(state.currentPlayerId, state.you);
+  assert.ok(state.players.filter((p) => p.bot).length === 2);
+  assert.ok(state.log.some((l) => l.startsWith('Computer 1 würfelt')));
+  anna.close();
+  await app.close();
+  assert.ok(code);
+});

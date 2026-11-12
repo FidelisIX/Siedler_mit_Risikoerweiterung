@@ -58,6 +58,27 @@ Client: reines HTML/CSS/JavaScript mit SVG-Hexkarte. Der Server prüft alle Spie
 - **Zweiter Tab:** Pro Spieler ist nur eine Verbindung aktiv. Wer das Spiel in einem weiteren Tab öffnet,
   spielt dort weiter; der alte Tab zeigt „In einem anderen Tab geöffnet“.
 
+## Computergegner & automatisierte Tests
+
+**Im Spiel:** Der Gastgeber fügt in der Lobby über **„🤖 Computergegner hinzufügen“** Computergegner hinzu (und entfernt
+sie über ✕). Sie haben keine besondere Strategie, spielen aber zufällige gültige Züge: würfeln, bauen, Banktausch,
+Angebote machen und beantworten, in der Eroberung rekrutieren, verlegen und angreifen. Sie können nie Gastgeber werden
+und stimmen weder bei „Nochmal spielen“ noch bei „Weiterspielen?“ mit ab. In der Statistik erscheinen sie nicht.
+Zwischen zwei Bot-Zügen wartet der Server kurz (`BOT_DELAY_MS`, Standard 700 ms), damit man mitverfolgen kann.
+
+**Automatisierte Testpartien:**
+
+```bash
+npm run simulate          # 3 Partien je Kombination (8 Spielaufbauten × 5 Karten)
+npm run simulate -- 10    # 10 Partien je Kombination
+```
+
+Das Skript spielt Partien nur mit Computergegnern über alle Varianten, Karten, Siegbedingungen und Teams und prüft
+nach jedem Schritt, ob der Spielzustand gültig ist (z. B. keine negativen Rohstoffe, Gebäude nur auf passendem Gelände,
+Truppen im erlaubten Bereich, besiegte Spieler ohne Landgebäude) und ob Sicherung und Wiederherstellung den Zustand
+unverändert lassen. Es meldet nicht beendete Partien, Regelverletzungen und ungültige Bot-Aktionen und endet dann mit
+Fehlercode 1. Ein kleiner Ausschnitt davon läuft bei `npm test` mit (`test/bots.test.js`).
+
 ## Teams
 
 In der Lobby stellt der Gastgeber **„Feste Teams“** ein (bis zu 3 Teams: A, B, C; auch ungleich, z. B. 2 gegen 1).
@@ -180,6 +201,7 @@ das für etwa 8 gleichzeitig aktive Räume.
 | `STATS_BRANCH`       | `statistik`                               | Datenbranch; darf nicht `main` sein               |
 | `STATS_FILE`         | –                                         | Alternativ: lokale Datei (Entwicklung) ohne Token |
 | `ROOM_BACKUP_INTERVAL_MS` | `60000`                              | Abstand der regelmäßigen Raumsicherung in ms      |
+| `BOT_DELAY_MS`       | `700`                                     | Pause vor jedem Zug eines Computergegners in ms   |
 
 ## Aufgaben, Bugs und Wünsche
 
@@ -195,6 +217,9 @@ server/game.js    Spiellogik und Regeln
 server/index.js   HTTP- und Socket.IO-Server, Räume, Wiederherstellung nach Neustart
 server/store.js   Speicherung von Partien und Raumsicherungen (GitHub-Branch, Datei oder Arbeitsspeicher)
 server/stats.js   Auswertung: Rekorde, Spielertabelle, Karten
+server/bot.js     Computergegner (zufällige gültige Züge)
+server/simulate.js  Testpartien nur mit Computergegnern, Prüfung des Spielzustands
+scripts/simulate.js Kommandozeile für die Testpartien (npm run simulate)
 public/           Browser-Client (index.html, client.js), Karteneditor (editor.html, editor.js),
                   Statistik (stats.html, stats-page.js), hex.js
 test/             node:test – Spiellogik, Statistik und Socket-Integrationstest

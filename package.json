@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "simulate": "node scripts/simulate.js"
   },
   "engines": {
     "node": ">=20"

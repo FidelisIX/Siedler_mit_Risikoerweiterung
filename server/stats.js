@@ -24,7 +24,7 @@ function winnersOf(game) {
  */
 function computeStats(allGames, filter = {}) {
   const names = new Map(); // key → Anzeigename (zuletzt verwendete Schreibweise)
-  for (const g of allGames) for (const p of g.players) names.set(playerKey(p.name), p.name);
+  for (const g of allGames) for (const p of g.players) if (!p.bot) names.set(playerKey(p.name), p.name);
 
   const wanted = filter.player ? playerKey(filter.player) : null;
   const games = allGames.filter(
@@ -65,6 +65,7 @@ function computeStats(allGames, filter = {}) {
     maps.set(g.map.name, map);
 
     for (const p of g.players) {
+      if (p.bot) continue; // Computergegner erscheinen nicht in Tabelle und Rekorden
       const key = playerKey(p.name);
       if (wanted && key !== wanted) continue;
       const s = stat(key);

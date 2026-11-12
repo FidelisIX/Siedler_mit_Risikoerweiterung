@@ -9,6 +9,7 @@ const { Game, GameError } = require('./game');
 const { PRESETS } = require('./map');
 const { createStatsStore } = require('./store');
 const { computeStats } = require('./stats');
+const bots = require('./bot');
 
 const ROOM_IDLE_MS = 30 * 60 * 1000;
 // Ältere Raumsicherungen werden verworfen. Etwas länger als ROOM_IDLE_MS, damit auch ein Raum, in dem vor dem
@@ -21,12 +22,14 @@ const SNAPSHOT_MAX_AGE_MS = 35 * 60 * 1000;
 const BACKUP_INTERVAL_MS = Number(process.env.ROOM_BACKUP_INTERVAL_MS) || 60 * 1000;
 const RESTORE_WAIT_MS = 15_000; // so lange wartet ein Beitritt auf die Sicherung des alten Servers
 const SHUTDOWN_SAVE_TIMEOUT_MS = 8_000;
+// Pause vor jedem Bot-Zug, damit man im Browser mitverfolgen kann, was passiert.
+const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS) || 700;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ACTIONS = new Set([
   'setVictory', 'setMap', 'start', 'placeStart', 'roll', 'build',
   'bankTrade', 'proposeTrade', 'respondTrade', 'cancelTrade', 'endTurn', 'forceSkip',
   'setVariant', 'recruit', 'moveTroops', 'attack',
-  'voteRematch', 'backToLobby', 'castVote', 'setTeamsEnabled', 'setTeam',
+  'voteRematch', 'backToLobby', 'castVote', 'setTeamsEnabled', 'setTeam', 'addBot',
 ]);
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,6 +42,7 @@ function validToken(token) {
 
 function createServer({
   store = createStatsStore(), restoreWaitMs = RESTORE_WAIT_MS, restorePollMs = 1000, backupIntervalMs = BACKUP_INTERVAL_MS,
+  botDelayMs = BOT_DELAY_MS,
 } = {}) {
   const app = express();
   const server = http.createServer(app);
@@ -111,6 +115,25 @@ function createServer({
     for (const s of socketsOf(room.game.code)) {
       s.emit('state', room.game.publicState(s.data.playerId));
     }
+    scheduleBots(room);
+  }
+
+  // Ist ein Computergegner dran (oder muss ein Angebot beantworten), nach kurzer Pause einen Schritt spielen.
+  // Jeder Schritt sendet den neuen Zustand, und broadcast plant von dort den nächsten.
+  function scheduleBots(room) {
+    if (room.botTimer || !bots.botPending(room.game)) return;
+    room.botStats = room.botStats || new bots.BotStats();
+    room.botTimer = setTimeout(() => {
+      room.botTimer = null;
+      if (!rooms.has(room.game.code) || !bots.botPending(room.game)) return;
+      try {
+        bots.step(room.game, room.botStats);
+      } catch (err) {
+        console.error(`Computergegner in Raum ${room.game.code}:`, err);
+        return;
+      }
+      broadcast(room);
+    }, botDelayMs);
   }
 
   // Socket aus dem Raum lösen, ohne den Spieler als getrennt zu markieren.
@@ -320,6 +343,7 @@ function createServer({
     for (const [code, room] of rooms) {
       if (socketsOf(code).length === 0 && now - room.lastActive > ROOM_IDLE_MS) {
         room.game.destroy();
+        clearTimeout(room.botTimer);
         rooms.delete(code);
         // Verlassene Räume nicht nach einem späteren Neustart wieder auferstehen lassen
         if (room.backedUp) store.deleteRoom(code).catch((err) => console.error('Raumsicherung nicht gelöscht:', err.message));
@@ -355,7 +379,10 @@ function createServer({
   function close() {
     clearInterval(sweep);
     clearInterval(backup);
-    for (const room of rooms.values()) room.game.destroy();
+    for (const room of rooms.values()) {
+      room.game.destroy();
+      clearTimeout(room.botTimer);
+    }
     io.close();
     return new Promise((resolve) => server.close(() => resolve()));
   }

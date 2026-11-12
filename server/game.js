@@ -376,18 +376,39 @@ class Game {
     this.addLog(`${name} ist beigetreten.`);
   }
 
+  // Computergegner (zum Ausprobieren und für automatisierte Tests). Sie gelten immer als verbunden,
+  // können nie Gastgeber sein und stimmen nicht ab; ihre Züge macht server/bot.js.
+  addBot(playerId, payload = {}) {
+    if (this.phase !== 'lobby') throw new GameError('Das Spiel läuft bereits.');
+    this.requireHost(playerId);
+    if (this.players.length >= MAX_PLAYERS) throw new GameError(`Maximal ${MAX_PLAYERS} Spieler.`);
+    let n = 1;
+    while (this.players.some((p) => p.name === `Computer ${n}`)) n++;
+    const id = payload.id || `bot-${n}-${Math.floor(this.rng() * 1e9).toString(36)}`;
+    this.addPlayer(id, `Computer ${n}`);
+    this.getPlayer(id).bot = true;
+    return id;
+  }
+
+  humans() {
+    return this.activePlayers().filter((p) => !p.bot);
+  }
+
   removePlayer(playerId) {
     if (this.phase !== 'lobby') return;
     const index = this.players.findIndex((p) => p.id === playerId);
     if (index === -1) return;
     const [removed] = this.players.splice(index, 1);
     this.addLog(`${removed.name} hat den Raum verlassen.`);
-    if (this.hostId === playerId) this.hostId = this.players[0] ? this.players[0].id : null;
+    if (this.hostId === playerId) {
+      const next = this.players.find((p) => !p.bot);
+      this.hostId = next ? next.id : null;
+    }
   }
 
   setConnected(playerId, connected) {
     const player = this.players.find((p) => p.id === playerId);
-    if (!player || player.removed) return;
+    if (!player || player.removed || player.bot) return;
     player.connected = connected;
     if (connected) {
       const host = this.players.find((p) => p.id === this.hostId);
@@ -406,7 +427,7 @@ class Game {
       this.hostTimer = null;
       const host = this.players.find((p) => p.id === this.hostId);
       if (host && host.connected && !host.removed) return;
-      const next = this.activePlayers().find((p) => p.connected);
+      const next = this.humans().find((p) => p.connected);
       if (!next) return;
       this.hostId = next.id;
       this.addLog(`${next.name} ist jetzt Gastgeber.`);
@@ -760,7 +781,7 @@ class Game {
   }
 
   voters() {
-    return this.players.filter((p) => this.inGame(p) && p.connected);
+    return this.players.filter((p) => this.inGame(p) && p.connected && !p.bot);
   }
 
   castVote(playerId, payload) {
@@ -1072,7 +1093,7 @@ class Game {
       teams: this.teamsEnabled,
       players: this.results.map((r) => ({
         name: r.name, points: r.points, resources: r.resources, removed: r.removed, eliminated: r.eliminated,
-        team: r.team, stats: r.stats,
+        team: r.team, bot: !!this.players.find((p) => p.id === r.id)?.bot, stats: r.stats,
       })),
     };
   }
@@ -1092,7 +1113,7 @@ class Game {
 
   maybeRematch() {
     if (this.phase !== 'ended' || this.rematchVotes.size === 0) return;
-    const online = this.activePlayers().filter((p) => p.connected);
+    const online = this.humans().filter((p) => p.connected);
     if (online.length > 0 && online.every((p) => this.rematchVotes.has(p.id)) && this.activePlayers().length >= MIN_PLAYERS) {
       this.addLog('Alle sind dabei – neue Partie!');
       this.beginGame();
@@ -1133,7 +1154,7 @@ class Game {
     game.rematchVotes = new Set(rematchVotes || []);
     game.tileIndex = new Map(game.tiles.map((t) => [t.id, t]));
     // Nach dem Neustart ist zunächst niemand verbunden; kommt der Gastgeber nicht zurück, wird übergeben.
-    for (const p of game.players) p.connected = false;
+    for (const p of game.players) p.connected = !!p.bot;
     game.scheduleHostHandover();
     return game;
   }
@@ -1193,6 +1214,7 @@ class Game {
         name: p.name,
         color: p.color,
         connected: p.connected,
+        bot: !!p.bot,
         removed: p.removed,
         eliminated: !!p.eliminated,
         points: this.points(p.id),
